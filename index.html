@@ -228,6 +228,42 @@
   .history-item-delete:hover{color:var(--danger);background:var(--danger-dim);}
   .history-item-delete svg{width:14px;height:14px;}
   .history-item-top{gap:10px;}
+  .history-item-edit{
+    width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    color:var(--dim2);flex-shrink:0;transition:color .15s ease, background .15s ease;
+  }
+  .history-item-edit:hover{color:var(--accent);background:var(--accent-dim);}
+  .history-item-edit svg{width:14px;height:14px;}
+
+  .text-accent-btn{font-size:12.5px;color:var(--accent);padding:8px 0;}
+  .history-edit-form{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+  .edit-form-label{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
+  .edit-form-hint{font-size:12.5px;color:var(--dim2);padding:8px 0;}
+  .edit-trade-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .edit-trade-amount{
+    width:76px;flex-shrink:0;background:var(--surface2);border:1px solid var(--line);border-radius:8px;
+    padding:9px 10px;font-size:13.5px;color:var(--ink);
+  }
+  .edit-trade-amount:focus{border-color:var(--accent);}
+  .edit-trade-result{display:flex;gap:4px;flex:1;}
+  .edit-trade-result-btn{
+    flex:1;padding:9px 4px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);
+    font-size:11.5px;color:var(--dim);transition:all .12s ease;
+  }
+  .edit-trade-result-btn.selected.win{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+  .edit-trade-result-btn.selected.loss{background:var(--danger-dim);border-color:var(--danger);color:var(--danger);}
+  .edit-trade-result-btn.selected.be{background:var(--surface);border-color:var(--dim);color:var(--ink);}
+  .edit-trade-remove{
+    width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    color:var(--dim2);transition:color .15s ease, background .15s ease;
+  }
+  .edit-trade-remove:hover{color:var(--danger);background:var(--danger-dim);}
+  .edit-trade-remove svg{width:13px;height:13px;}
+  .history-edit-form textarea{
+    width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;font-size:13.5px;color:var(--ink);line-height:1.5;min-height:60px;
+  }
+  .history-edit-form textarea:focus{border-color:var(--accent);}
 
   #confirmModal{
     position:fixed;inset:0;z-index:300;background:rgba(4,6,8,0.75);backdrop-filter:blur(8px);
@@ -810,6 +846,14 @@
   });
 
   /* ---------- HISTORY ---------- */
+  let editingIdx = null;
+  let editBuffer = null;
+  const STATE_OPTIONS = ['calm','focused','anxious','chasing','distracted'];
+
+  function computeNet(trades){
+    return trades.reduce(function(sum, t){ return sum + (t.result === 'win' ? t.amount : t.result === 'loss' ? -t.amount : 0); }, 0);
+  }
+
   function renderHistory(){
     const history = load(STORAGE.history, []);
     const list = document.getElementById('historyList');
@@ -817,28 +861,70 @@
     clearBtn.style.display = history.length ? 'block' : 'none';
     if(!history.length){
       list.innerHTML = '<div class="history-empty"><span class="serif">Nothing yet</span>Your first completed session will show up here.</div>';
+      editingIdx = null;
       return;
     }
     list.innerHTML = history.map(function(s, i){
-      const net = s.trades.reduce(function(sum, t){ return sum + (t.result === 'win' ? t.amount : t.result === 'loss' ? -t.amount : 0); }, 0);
+      const net = computeNet(s.trades);
       const wins = s.trades.filter(function(t){ return t.result === 'win'; }).length;
       const losses = s.trades.filter(function(t){ return t.result === 'loss'; }).length;
       const d = new Date(s.startedAt);
       const dateLabel = d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
       const stateLabel = s.stateCheck ? s.stateCheck.charAt(0).toUpperCase()+s.stateCheck.slice(1) : '—';
       const overrideNote = s.overrides && s.overrides.length ? '<br><strong style="color:var(--danger)">Overrode limit '+s.overrides.length+'x</strong>' : '';
+      const topRow = '<div class="history-item-top"><div class="history-date">'+dateLabel+'</div><div style="display:flex;align-items:center;gap:8px;">'
+        + '<div class="history-net'+(net>0?' pos':net<0?' neg':'')+'">'+fmtMoney(net)+'</div>'
+        + '<button class="history-item-edit" data-edit-idx="'+i+'" aria-label="Edit this entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg></button>'
+        + '<button class="history-item-delete" data-del-idx="'+i+'" aria-label="Delete this entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg></button>'
+        + '</div></div>';
+
+      if(i === editingIdx){
+        const buf = editBuffer;
+        const tradesHtml = buf.trades.map(function(t, ti){
+          return '<div class="edit-trade-row" data-trade-idx="'+ti+'">'
+            + '<input type="number" inputmode="decimal" class="edit-trade-amount" data-trade-idx="'+ti+'" value="'+t.amount+'" placeholder="Amount">'
+            + '<div class="edit-trade-result">'
+              + ['win','be','loss'].map(function(r){
+                  return '<button class="edit-trade-result-btn'+(t.result===r?' selected '+r:'')+'" data-trade-idx="'+ti+'" data-result="'+r+'">'+(r==='win'?'Win':r==='be'?'BE':'Loss')+'</button>';
+                }).join('')
+            + '</div>'
+            + '<button class="edit-trade-remove" data-trade-idx="'+ti+'" aria-label="Remove trade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>'
+            + '</div>';
+        }).join('');
+        const chipsHtml = STATE_OPTIONS.map(function(st){
+          return '<button class="chip edit-state-chip'+(buf.stateCheck===st?' selected':'')+'" data-state="'+st+'">'+st.charAt(0).toUpperCase()+st.slice(1)+'</button>';
+        }).join('');
+        return '<div class="history-item expanded editing" data-idx="'+i+'">'
+          + topRow
+          + '<div class="history-meta"><span>'+wins+'W / '+losses+'L</span><span>State: '+stateLabel+'</span></div>'
+          + '<div class="history-edit-form">'
+            + '<div class="edit-form-label">Trades</div>'
+            + '<div id="editTradesList">'+(tradesHtml || '<div class="edit-form-hint">No trades logged.</div>')+'</div>'
+            + '<button class="text-accent-btn" id="addTradeBtn">+ Add trade</button>'
+            + '<div class="edit-form-label" style="margin-top:16px;">State</div>'
+            + '<div class="chip-row">'+chipsHtml+'</div>'
+            + '<div class="edit-form-label" style="margin-top:16px;">Notes</div>'
+            + '<textarea id="editNotesInput" placeholder="What actually happened">'+escapeHtml(buf.notes||'')+'</textarea>'
+            + '<div class="edit-form-label" style="margin-top:12px;">Next plan</div>'
+            + '<textarea id="editNextInput" placeholder="One thing, next session">'+escapeHtml(buf.nextPlan||'')+'</textarea>'
+            + '<div class="btn-row" style="margin-top:16px;"><button class="btn btn-ghost" id="cancelEditBtn">Cancel</button><button class="btn btn-primary" id="saveEditBtn">Save</button></div>'
+          + '</div>'
+        + '</div>';
+      }
+
       return '<div class="history-item" data-idx="'+i+'">'
-        + '<div class="history-item-top"><div class="history-date">'+dateLabel+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="history-net'+(net>0?' pos':net<0?' neg':'')+'">'+fmtMoney(net)+'</div><button class="history-item-delete" data-del-idx="'+i+'" aria-label="Delete this entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg></button></div></div>'
+        + topRow
         + '<div class="history-meta"><span>'+wins+'W / '+losses+'L</span><span>State: '+stateLabel+'</span></div>'
         + '<div class="history-detail">'+(s.notes ? escapeHtml(s.notes) : 'No notes.')+(s.nextPlan ? '<br><br><em>Next: '+escapeHtml(s.nextPlan)+'</em>' : '')+overrideNote+'</div>'
         + '</div>';
     }).join('');
-    document.querySelectorAll('.history-item').forEach(function(item){
+
+    document.querySelectorAll('.history-item:not(.editing)').forEach(function(item){
       item.addEventListener('click', function(){ item.classList.toggle('expanded'); });
     });
     document.querySelectorAll('.history-item-delete').forEach(function(btn){
       btn.addEventListener('click', function(e){
-        e.stopPropagation(); // don't also trigger the parent item's expand/collapse
+        e.stopPropagation();
         const idx = parseInt(btn.dataset.delIdx, 10);
         openConfirm('Delete this entry?', 'This removes just this one session. The rest of your history stays.', function(){
           const h = load(STORAGE.history, []);
@@ -848,6 +934,82 @@
           showToast('Entry deleted');
         });
       });
+    });
+    document.querySelectorAll('.history-item-edit').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.editIdx, 10);
+        const h = load(STORAGE.history, []);
+        editingIdx = idx;
+        editBuffer = JSON.parse(JSON.stringify(h[idx])); // deep copy — nothing commits until Save
+        renderHistory();
+      });
+    });
+
+    if(editingIdx !== null) wireEditForm();
+  }
+
+  function wireEditForm(){
+    document.querySelectorAll('.edit-trade-amount').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        editBuffer.trades[parseInt(inp.dataset.tradeIdx,10)].amount = parseFloat(inp.value) || 0;
+      });
+      inp.addEventListener('click', function(e){ e.stopPropagation(); });
+    });
+    document.querySelectorAll('.edit-trade-result-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        editBuffer.trades[parseInt(btn.dataset.tradeIdx,10)].result = btn.dataset.result;
+        renderHistory();
+      });
+    });
+    document.querySelectorAll('.edit-trade-remove').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        editBuffer.trades.splice(parseInt(btn.dataset.tradeIdx,10), 1);
+        renderHistory();
+      });
+    });
+    const addBtn = document.getElementById('addTradeBtn');
+    if(addBtn) addBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      editBuffer.trades.push({ time: Date.now(), amount: 0, result: 'win', fearOrRead: null, chasing: null });
+      renderHistory();
+    });
+    document.querySelectorAll('.edit-state-chip').forEach(function(chip){
+      chip.addEventListener('click', function(e){
+        e.stopPropagation();
+        editBuffer.stateCheck = chip.dataset.state;
+        renderHistory();
+      });
+    });
+    const notesEl = document.getElementById('editNotesInput');
+    if(notesEl){
+      notesEl.addEventListener('input', function(){ editBuffer.notes = this.value; });
+      notesEl.addEventListener('click', function(e){ e.stopPropagation(); });
+    }
+    const nextEl = document.getElementById('editNextInput');
+    if(nextEl){
+      nextEl.addEventListener('input', function(){ editBuffer.nextPlan = this.value; });
+      nextEl.addEventListener('click', function(e){ e.stopPropagation(); });
+    }
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if(cancelBtn) cancelBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      editingIdx = null;
+      editBuffer = null;
+      renderHistory();
+    });
+    const saveBtn = document.getElementById('saveEditBtn');
+    if(saveBtn) saveBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      const h = load(STORAGE.history, []);
+      h[editingIdx] = editBuffer;
+      save(STORAGE.history, h);
+      editingIdx = null;
+      editBuffer = null;
+      renderHistory();
+      showToast('Entry updated');
     });
   }
   document.getElementById('clearHistoryBtn').addEventListener('click', function(){
