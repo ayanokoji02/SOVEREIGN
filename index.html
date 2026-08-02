@@ -94,9 +94,9 @@
 
   /* Ritual ring-icons (Prepare checklist) — same ring technique as the big state ring above,
      just smaller, so completion is always represented the same way across the whole app. */
-  .ritual-ring-row{display:flex;justify-content:space-between;gap:8px;}
-  .ritual-ring-item{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;flex:1;}
-  .ritual-ring{position:relative;width:64px;height:64px;}
+  .ritual-ring-row{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;}
+  .ritual-ring-item{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;flex:1;min-width:0;}
+  .ritual-ring{position:relative;width:var(--ring-sz, 64px);height:var(--ring-sz, 64px);}
   .ritual-ring > svg:first-child{width:100%;height:100%;transform:rotate(-90deg);}
   .ritual-ring circle{fill:none;stroke-width:3;}
   .ritual-ring .track{stroke:var(--surface2);}
@@ -107,7 +107,7 @@
     transition:color .3s ease;
   }
   .ritual-ring-item.checked .ritual-ring-icon{color:var(--accent);}
-  .ritual-ring-icon svg{width:26px;height:26px;}
+  .ritual-ring-icon svg{width:var(--ring-icon-sz, 26px);height:var(--ring-icon-sz, 26px);}
   .ritual-ring-label{font-size:11.5px;color:var(--dim);text-align:center;transition:color .3s ease;}
   .ritual-ring-item.checked .ritual-ring-label{color:var(--ink);}
 
@@ -245,6 +245,11 @@
     padding:9px 10px;font-size:13.5px;color:var(--ink);
   }
   .edit-trade-amount:focus{border-color:var(--accent);}
+  .edit-date-input{
+    background:var(--surface2);border:1px solid var(--line);border-radius:8px;
+    padding:9px 10px;font-size:13.5px;color:var(--ink);color-scheme:dark;
+  }
+  .edit-date-input:focus{border-color:var(--accent);}
   .edit-trade-result{display:flex;gap:4px;flex:1;}
   .edit-trade-result-btn{
     flex:1;padding:9px 4px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);
@@ -264,6 +269,33 @@
     padding:11px 12px;font-size:13.5px;color:var(--ink);line-height:1.5;min-height:60px;
   }
   .history-edit-form textarea:focus{border-color:var(--accent);}
+
+  .ritual-edit-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;}
+  .ritual-edit-icon-btn{
+    width:40px;height:40px;border-radius:10px;background:var(--surface2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0;
+  }
+  .ritual-edit-icon-btn svg{width:18px;height:18px;}
+  .ritual-edit-label-input{
+    flex:1;background:var(--surface2);border:1px solid var(--line);border-radius:8px;
+    padding:9px 10px;font-size:13.5px;color:var(--ink);min-width:0;
+  }
+  .ritual-edit-label-input:focus{border-color:var(--accent);}
+  .ritual-edit-remove{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--dim2);flex-shrink:0;}
+  .ritual-edit-remove:hover{color:var(--danger);background:var(--danger-dim);}
+  .ritual-edit-remove svg{width:14px;height:14px;}
+
+  #iconPickerModal{position:fixed;inset:0;z-index:310;background:rgba(4,6,8,0.75);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;}
+  #iconPickerModal.open{display:flex;}
+  .icon-picker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .icon-picker-item{
+    aspect-ratio:1;border-radius:12px;background:var(--surface2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;color:var(--dim);transition:all .15s ease;
+  }
+  .icon-picker-item:hover{border-color:var(--accent);color:var(--accent);}
+  .icon-picker-item svg{width:20px;height:20px;}
+  .chart-legend{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--dim);}
+  .legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
 
   #confirmModal{
     position:fixed;inset:0;z-index:300;background:rgba(4,6,8,0.75);backdrop-filter:blur(8px);
@@ -338,37 +370,11 @@
       <p class="stage-sub">Remove the battle before it starts. This decides more than the market does.</p>
 
       <div class="card">
-        <div class="card-label">Today's ritual</div>
-        <div class="ritual-ring-row">
-          <div class="ritual-ring-item" data-check="room">
-            <div class="ritual-ring">
-              <svg viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="27"></circle><circle class="fill" cx="32" cy="32" r="27" stroke-dasharray="170" stroke-dashoffset="170"></circle></svg>
-              <div class="ritual-ring-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4-3.5 4 3.5"></path><path d="M9 11.5v6.5h6v-6.5"></path></svg></div>
-            </div>
-            <div class="ritual-ring-label">Room</div>
-          </div>
-          <div class="ritual-ring-item" data-check="outfit">
-            <div class="ritual-ring">
-              <svg viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="27"></circle><circle class="fill" cx="32" cy="32" r="27" stroke-dasharray="170" stroke-dashoffset="170"></circle></svg>
-              <div class="ritual-ring-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="1.3"></circle><path d="M12 8.8v1.2"></path><path d="M8 15l4-3 4 3"></path></svg></div>
-            </div>
-            <div class="ritual-ring-label">Outfit</div>
-          </div>
-          <div class="ritual-ring-item" data-check="workspace">
-            <div class="ritual-ring">
-              <svg viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="27"></circle><circle class="fill" cx="32" cy="32" r="27" stroke-dasharray="170" stroke-dashoffset="170"></circle></svg>
-              <div class="ritual-ring-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="8" width="10" height="7" rx="1"></rect><path d="M10.5 18h3M12 15v3"></path></svg></div>
-            </div>
-            <div class="ritual-ring-label">Workspace</div>
-          </div>
-          <div class="ritual-ring-item" data-check="energy">
-            <div class="ritual-ring">
-              <svg viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="27"></circle><circle class="fill" cx="32" cy="32" r="27" stroke-dasharray="170" stroke-dashoffset="170"></circle></svg>
-              <div class="ritual-ring-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7l-4 6h3l-1 4 4-6h-3z"></path></svg></div>
-            </div>
-            <div class="ritual-ring-label">Energy</div>
-          </div>
+        <div class="card-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Today's ritual</span>
+          <button class="text-accent-btn" id="editRitualsBtn" style="padding:0;">Edit</button>
         </div>
+        <div class="ritual-ring-row" id="ritualRingRow"></div>
       </div>
 
       <div class="card">
@@ -500,6 +506,14 @@
     <h1>History</h1>
     <button class="text-danger-btn" id="clearHistoryBtn" style="display:none;">Clear All</button>
   </div>
+  <div class="card" id="chartCard" style="display:none;">
+    <div class="card-label">Net by session</div>
+    <div id="chartWrap"></div>
+    <div class="chart-legend">
+      <span><i class="legend-dot" style="background:var(--accent)"></i>Calm/Focused</span>
+      <span><i class="legend-dot" style="background:var(--danger)"></i>Anxious/Chasing/Distracted</span>
+    </div>
+  </div>
   <div id="historyList"></div>
 </div>
 
@@ -516,6 +530,21 @@
 </div>
 
 <!-- ============ SELF VIEW ============ -->
+<div class="view" id="view-rituals">
+  <div class="view-header-row"><h1>Rituals</h1></div>
+  <div id="ritualEditList"></div>
+  <button class="text-accent-btn" id="addRitualBtn" style="margin:10px 0 18px;">+ Add ritual</button>
+  <button class="btn btn-primary" id="saveRitualsBtn">Done</button>
+</div>
+
+<div id="iconPickerModal">
+  <div class="confirm-box" style="width:min(320px,100%);">
+    <div class="confirm-title" style="margin-bottom:14px;">Choose an icon</div>
+    <div class="icon-picker-grid" id="iconPickerGrid"></div>
+    <button class="btn btn-ghost" id="iconPickerCancel" style="margin-top:14px;">Cancel</button>
+  </div>
+</div>
+
 <div class="view" id="view-self">
   <h1>Who I Am</h1>
   <div class="self-field">
@@ -584,12 +613,35 @@
     setTimeout(function(){ t.classList.remove('show'); }, 1800);
   }
 
+  const ICON_LIBRARY = {
+    house: '<path d="M8 12l4-3.5 4 3.5"></path><path d="M9 11.5v6.5h6v-6.5"></path>',
+    hanger: '<circle cx="12" cy="7.5" r="1.3"></circle><path d="M12 8.8v1.2"></path><path d="M8 15l4-3 4 3"></path>',
+    monitor: '<rect x="7" y="8" width="10" height="7" rx="1"></rect><path d="M10.5 18h3M12 15v3"></path>',
+    bolt: '<path d="M13 7l-4 6h3l-1 4 4-6h-3z"></path>',
+    moon: '<path d="M16 4a8 8 0 1 0 4 7.6A6.5 6.5 0 0 1 16 4z"></path>',
+    droplet: '<path d="M12 4s5 6 5 9.5a5 5 0 0 1-10 0C7 10 12 4 12 4z"></path>',
+    book: '<path d="M6 5.5A2 2 0 0 1 8 4h9v14H8a2 2 0 0 0-2 1.5"></path><path d="M6 5.5V18a2 2 0 0 0 2 1.5"></path>',
+    dumbbell: '<path d="M6 9v6M4 10v4M18 9v6M20 10v4M8 12h8"></path>',
+    sun: '<circle cx="12" cy="12" r="3.2"></circle><path d="M12 5.5v-1M12 19.5v-1M5.5 12h-1M19.5 12h-1M7.6 7.6l-.7-.7M17.1 17.1l-.7-.7M7.6 16.4l-.7.7M17.1 6.9l-.7.7"></path>',
+    heart: '<path d="M12 19s-7-4.4-9-8.4C1.5 7.3 3.6 5 6.3 5c1.7 0 3 .9 3.7 2 .7-1.1 2-2 3.7-2 2.7 0 4.8 2.3 3.3 5.6-2 4-9 8.4-9 8.4z"></path>'
+  };
+  const DEFAULT_RITUALS = [
+    { id:'room', label:'Room', icon:'house' },
+    { id:'outfit', label:'Outfit', icon:'hanger' },
+    { id:'workspace', label:'Workspace', icon:'monitor' },
+    { id:'energy', label:'Energy', icon:'bolt' }
+  ];
+  STORAGE.rituals = 'sovereign_rituals';
+  function getRituals(){ return load(STORAGE.rituals, DEFAULT_RITUALS); }
+
   function newSession(){
+    const checklist = {};
+    getRituals().forEach(function(r){ checklist[r.id] = false; });
     return {
       date: todayISO(),
       startedAt: Date.now(),
       completedAt: null,
-      checklist: { room:false, outfit:false, workspace:false, energy:false },
+      checklist: checklist,
       lossLimit: 0,
       sessionsPlanned: 1,
       trades: [],
@@ -636,29 +688,48 @@
   }
 
   /* ---------- PREPARE ---------- */
-  function renderPrepare(){
-    document.querySelectorAll('#stage-prepare .ritual-ring-item').forEach(function(row){
-      const key = row.dataset.check;
-      row.classList.toggle('checked', !!session.checklist[key]);
+  function ringSizeForCount(n){
+    if(n <= 4) return { ring:64, icon:26 };
+    if(n === 5) return { ring:56, icon:23 };
+    if(n === 6) return { ring:50, icon:20 };
+    return { ring:44, icon:18 }; // 7+
+  }
+  function renderRitualRow(){
+    const rituals = getRituals();
+    const sz = ringSizeForCount(rituals.length);
+    const row = document.getElementById('ritualRingRow');
+    row.style.setProperty('--ring-sz', sz.ring+'px');
+    row.style.setProperty('--ring-icon-sz', sz.icon+'px');
+    const circumference = 2 * Math.PI * (sz.ring/2 - 5);
+    row.innerHTML = rituals.map(function(r){
+      const checked = !!session.checklist[r.id];
+      return '<div class="ritual-ring-item'+(checked?' checked':'')+'" data-check="'+r.id+'">'
+        + '<div class="ritual-ring"><svg viewBox="0 0 '+sz.ring+' '+sz.ring+'"><circle class="track" cx="'+sz.ring/2+'" cy="'+sz.ring/2+'" r="'+(sz.ring/2-5)+'"></circle><circle class="fill" cx="'+sz.ring/2+'" cy="'+sz.ring/2+'" r="'+(sz.ring/2-5)+'" stroke-dasharray="'+circumference+'" stroke-dashoffset="'+(checked?0:circumference)+'"></circle></svg>'
+        + '<div class="ritual-ring-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICON_LIBRARY[r.icon]||ICON_LIBRARY.house)+'</svg></div></div>'
+        + '<div class="ritual-ring-label">'+escapeHtml(r.label)+'</div></div>';
+    }).join('');
+    row.querySelectorAll('.ritual-ring-item').forEach(function(item){
+      item.addEventListener('click', function(){
+        const key = item.dataset.check;
+        session.checklist[key] = !session.checklist[key];
+        item.classList.toggle('checked', session.checklist[key]);
+        persistActive();
+        validatePrepare();
+      });
     });
+  }
+  function renderPrepare(){
+    renderRitualRow();
     document.getElementById('lossLimitInput').value = session.lossLimit || '';
     document.getElementById('sessionsPlannedInput').value = session.sessionsPlanned || 1;
     validatePrepare();
   }
   function validatePrepare(){
-    const allChecked = Object.values(session.checklist).every(Boolean);
+    const rituals = getRituals();
+    const allChecked = rituals.length > 0 && rituals.every(function(r){ return !!session.checklist[r.id]; });
     const hasLimit = session.lossLimit > 0;
     document.getElementById('beginTradingBtn').disabled = !(allChecked && hasLimit);
   }
-  document.querySelectorAll('#stage-prepare .ritual-ring-item').forEach(function(row){
-    row.addEventListener('click', function(){
-      const key = row.dataset.check;
-      session.checklist[key] = !session.checklist[key];
-      row.classList.toggle('checked', session.checklist[key]);
-      persistActive();
-      validatePrepare();
-    });
-  });
   document.getElementById('lossLimitInput').addEventListener('input', function(){
     session.lossLimit = parseFloat(this.value) || 0;
     persistActive();
@@ -859,6 +930,7 @@
     const list = document.getElementById('historyList');
     const clearBtn = document.getElementById('clearHistoryBtn');
     clearBtn.style.display = history.length ? 'block' : 'none';
+    renderChart(history);
     if(!history.length){
       list.innerHTML = '<div class="history-empty"><span class="serif">Nothing yet</span>Your first completed session will show up here.</div>';
       editingIdx = null;
@@ -898,6 +970,8 @@
           + topRow
           + '<div class="history-meta"><span>'+wins+'W / '+losses+'L</span><span>State: '+stateLabel+'</span></div>'
           + '<div class="history-edit-form">'
+            + '<div class="edit-form-label">Date & time</div>'
+            + '<input type="datetime-local" id="editDateInput" class="edit-date-input" style="width:100%;margin-bottom:14px;" value="'+toDatetimeLocalValue(buf.startedAt)+'">'
             + '<div class="edit-form-label">Trades</div>'
             + '<div id="editTradesList">'+(tradesHtml || '<div class="edit-form-hint">No trades logged.</div>')+'</div>'
             + '<button class="text-accent-btn" id="addTradeBtn">+ Add trade</button>'
@@ -984,6 +1058,14 @@
       });
     });
     const notesEl = document.getElementById('editNotesInput');
+    const dateEl = document.getElementById('editDateInput');
+    if(dateEl){
+      dateEl.addEventListener('input', function(){
+        const parsed = new Date(this.value);
+        if(!isNaN(parsed.getTime())) editBuffer.startedAt = parsed.getTime();
+      });
+      dateEl.addEventListener('click', function(e){ e.stopPropagation(); });
+    }
     if(notesEl){
       notesEl.addEventListener('input', function(){ editBuffer.notes = this.value; });
       notesEl.addEventListener('click', function(e){ e.stopPropagation(); });
@@ -1041,6 +1123,36 @@
     closeConfirm();
   });
 
+  function toDatetimeLocalValue(ts){
+    const d = new Date(ts);
+    const pad = function(n){ return String(n).padStart(2,'0'); };
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+  function renderChart(history){
+    const card = document.getElementById('chartCard');
+    const wrap = document.getElementById('chartWrap');
+    if(history.length < 2){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const chrono = history.slice().reverse(); // oldest first for left-to-right reading
+    const nets = chrono.map(function(s){ return computeNet(s.trades); });
+    const w = 320, h = 140, pad = 10;
+    const maxAbs = Math.max(10, Math.max.apply(null, nets.map(Math.abs)));
+    const xStep = (w - pad*2) / Math.max(1, chrono.length - 1);
+    const yFor = function(v){ return h/2 - (v / maxAbs) * (h/2 - pad); };
+    const points = nets.map(function(v, i){ return [pad + i*xStep, yFor(v)]; });
+    const path = points.map(function(p, i){ return (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+    const calmStates = { calm:1, focused:1 };
+    const dots = points.map(function(p, i){
+      const st = chrono[i].stateCheck;
+      const color = !st ? 'var(--dim2)' : (calmStates[st] ? 'var(--accent)' : 'var(--danger)');
+      return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.5" fill="'+color+'"></circle>';
+    }).join('');
+    wrap.innerHTML = '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;">'
+      + '<line x1="0" y1="'+(h/2)+'" x2="'+w+'" y2="'+(h/2)+'" stroke="var(--line)" stroke-width="1"></line>'
+      + '<path d="'+path+'" fill="none" stroke="var(--dim2)" stroke-width="1.5"></path>'
+      + dots + '</svg>';
+  }
+
   function escapeHtml(s){
     const d = document.createElement('div');
     d.textContent = s;
@@ -1060,16 +1172,86 @@
   /* ---------- Nav ---------- */
   function switchView(name){
     document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
-    document.getElementById('app').style.display = name === 'today' ? 'flex' : 'none';
+    document.getElementById('app').style.display = (name === 'today') ? 'flex' : 'none';
     if(name !== 'today') document.getElementById('view-'+name).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.view === name); });
     if(name === 'history') renderHistory();
     if(name === 'self') renderSelf();
+    if(name === 'rituals') renderRitualEditor();
   }
   document.querySelectorAll('.nav-btn').forEach(function(btn){
     btn.addEventListener('click', function(){ switchView(btn.dataset.view); });
   });
   document.getElementById('selfNavBtn').addEventListener('click', function(){ switchView('self'); });
+
+  /* ---------- Ritual editor ---------- */
+  let ritualEditBuffer = [];
+  let iconPickerTargetIdx = null;
+  document.getElementById('editRitualsBtn').addEventListener('click', function(){ switchView('rituals'); });
+  function renderRitualEditor(){
+    ritualEditBuffer = JSON.parse(JSON.stringify(getRituals()));
+    renderRitualEditList();
+  }
+  function renderRitualEditList(){
+    const list = document.getElementById('ritualEditList');
+    list.innerHTML = ritualEditBuffer.map(function(r, i){
+      return '<div class="ritual-edit-row">'
+        + '<button class="ritual-edit-icon-btn" data-idx="'+i+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICON_LIBRARY[r.icon]||ICON_LIBRARY.house)+'</svg></button>'
+        + '<input class="ritual-edit-label-input" data-idx="'+i+'" value="'+escapeHtml(r.label)+'" placeholder="Name">'
+        + '<button class="ritual-edit-remove" data-idx="'+i+'" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>'
+        + '</div>';
+    }).join('');
+    list.querySelectorAll('.ritual-edit-icon-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){ openIconPicker(parseInt(btn.dataset.idx,10)); });
+    });
+    list.querySelectorAll('.ritual-edit-label-input').forEach(function(inp){
+      inp.addEventListener('input', function(){ ritualEditBuffer[parseInt(inp.dataset.idx,10)].label = inp.value; });
+    });
+    list.querySelectorAll('.ritual-edit-remove').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        ritualEditBuffer.splice(parseInt(btn.dataset.idx,10), 1);
+        renderRitualEditList();
+      });
+    });
+  }
+  document.getElementById('addRitualBtn').addEventListener('click', function(){
+    ritualEditBuffer.push({ id: 'r'+Date.now(), label: 'New ritual', icon: 'sun' });
+    renderRitualEditList();
+  });
+  function openIconPicker(idx){
+    iconPickerTargetIdx = idx;
+    const grid = document.getElementById('iconPickerGrid');
+    grid.innerHTML = Object.keys(ICON_LIBRARY).map(function(key){
+      return '<button class="icon-picker-item" data-icon="'+key+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+ICON_LIBRARY[key]+'</svg></button>';
+    }).join('');
+    grid.querySelectorAll('.icon-picker-item').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        ritualEditBuffer[iconPickerTargetIdx].icon = btn.dataset.icon;
+        document.getElementById('iconPickerModal').classList.remove('open');
+        renderRitualEditList();
+      });
+    });
+    document.getElementById('iconPickerModal').classList.add('open');
+  }
+  document.getElementById('iconPickerCancel').addEventListener('click', function(){
+    document.getElementById('iconPickerModal').classList.remove('open');
+  });
+  document.getElementById('iconPickerModal').addEventListener('click', function(e){
+    if(e.target === this) this.classList.remove('open');
+  });
+  document.getElementById('saveRitualsBtn').addEventListener('click', function(){
+    const cleaned = ritualEditBuffer.filter(function(r){ return r.label.trim(); });
+    save(STORAGE.rituals, cleaned);
+    // reconcile the in-progress session's checklist: keep existing checked state where the
+    // ritual still exists, drop removed ones, add new ones as unchecked
+    const newChecklist = {};
+    cleaned.forEach(function(r){ newChecklist[r.id] = !!session.checklist[r.id]; });
+    session.checklist = newChecklist;
+    persistActive();
+    switchView('today');
+    renderPrepare();
+    showToast('Rituals updated');
+  });
 
   /* ---------- Init ---------- */
   // If the stored active session is from a previous calendar day and was never completed,
