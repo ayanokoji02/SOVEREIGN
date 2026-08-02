@@ -212,6 +212,12 @@
   }
   .stage-banner.danger{border-color:var(--danger);background:var(--danger-dim);color:var(--danger);}
 
+  /* Integrity stats */
+  .integrity-stats{display:flex;gap:14px;}
+  .integrity-stat{flex:1;text-align:center;padding:6px 0;}
+  .integrity-num{font-family:'Fraunces',serif;font-size:32px;color:var(--ink);}
+  .integrity-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-top:5px;}
+
   /* State check chips */
   .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
   .chip{
@@ -439,8 +445,8 @@
 
     <!-- ============ STATE CHECK ============ -->
     <section class="stage" id="stage-statecheck">
-      <h1>Trading State Check</h1>
-      <p class="stage-sub">Rate where you actually are, not where you want to be.</p>
+      <h1>Permission to Trade</h1>
+      <p class="stage-sub">Rate yourself honestly. You haven't earned the right to trade yet — this decides it.</p>
 
       <div class="card">
         <div class="card-label">Rate yourself, 1–10</div>
@@ -643,6 +649,19 @@
     <h1>History</h1>
     <button class="text-danger-btn" id="clearHistoryBtn" style="display:none;">Clear All</button>
   </div>
+  <div class="card" id="integrityCard" style="display:none;">
+    <div class="card-label">Integrity</div>
+    <div class="integrity-stats">
+      <div class="integrity-stat">
+        <div class="integrity-num" id="integrityOverrides">0</div>
+        <div class="integrity-label">Overrides logged</div>
+      </div>
+      <div class="integrity-stat">
+        <div class="integrity-num" id="integrityRedHonored">—</div>
+        <div class="integrity-label">Red days honored</div>
+      </div>
+    </div>
+  </div>
   <div class="card" id="chartCard" style="display:none;">
     <div class="card-label">Net by session</div>
     <div id="chartWrap" style="position:relative;"></div>
@@ -828,7 +847,7 @@
     const fill = document.getElementById('stateRingFill');
     const stageEl = document.getElementById('stateRingStage');
     const subEl = document.getElementById('stateRingSub');
-    const map = { prepare: [1,'Prepare','Step 1 of 4'], statecheck: [2,'State Check','Step 2 of 4'], trade: [3,'Trading','Step 3 of 4'], reflect: [4,'Reflect','Step 4 of 4'] };
+    const map = { prepare: [1,'Prepare','Step 1 of 4'], statecheck: [2,'Permission','Step 2 of 4'], trade: [3,'Trading','Step 3 of 4'], reflect: [4,'Reflect','Step 4 of 4'] };
     const info = map[session.stage] || map.prepare;
     const frac = info[0] / 4;
     fill.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - frac));
@@ -1238,6 +1257,7 @@
     renderChart(history);
     renderScoreChart(history);
     renderDisciplineChart(history);
+    renderIntegrity(history);
     if(!history.length){
       list.innerHTML = '<div class="history-empty"><span class="serif">Nothing yet</span>Your first completed session will show up here.</div>';
       editingIdx = null;
@@ -1581,6 +1601,24 @@
         + '<div style="height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+r.color+';border-radius:4px;"></div></div>'
         + '</div>';
     }).join('');
+  }
+
+  /* ---------- Integrity: only what's actually variable, no padded always-true criteria ---------- */
+  function renderIntegrity(history){
+    const card = document.getElementById('integrityCard');
+    if(history.length === 0){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const totalOverrides = history.reduce(function(sum, s){ return sum + (s.overrides ? s.overrides.length : 0); }, 0);
+    document.getElementById('integrityOverrides').textContent = totalOverrides;
+
+    const redSessions = history.filter(function(s){ return s.preState && s.preState.calculated && s.preState.classification === 'red'; });
+    const redEl = document.getElementById('integrityRedHonored');
+    if(redSessions.length === 0){
+      redEl.textContent = '—';
+    } else {
+      const honored = redSessions.filter(function(s){ return !s.preState.overridden; }).length;
+      redEl.textContent = honored + '/' + redSessions.length;
+    }
   }
 
   function escapeHtml(s){
