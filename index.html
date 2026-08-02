@@ -218,6 +218,12 @@
   .integrity-num{font-family:'Fraunces',serif;font-size:32px;color:var(--ink);}
   .integrity-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-top:5px;}
 
+  /* Evidence */
+  .evidence-item{padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.55;color:var(--ink);}
+  .evidence-item:last-child{border-bottom:none;}
+  .evidence-item.locked{color:var(--dim2);}
+  .evidence-progress{font-size:11px;color:var(--dim2);margin-top:3px;}
+
   /* State check chips */
   .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
   .chip{
@@ -648,6 +654,10 @@
   <div class="view-header-row">
     <h1>History</h1>
     <button class="text-danger-btn" id="clearHistoryBtn" style="display:none;">Clear All</button>
+  </div>
+  <div class="card" id="evidenceCard" style="display:none;">
+    <div class="card-label">Evidence</div>
+    <div id="evidenceList"></div>
   </div>
   <div class="card" id="integrityCard" style="display:none;">
     <div class="card-label">Integrity</div>
@@ -1258,6 +1268,7 @@
     renderScoreChart(history);
     renderDisciplineChart(history);
     renderIntegrity(history);
+    renderEvidence(history);
     if(!history.length){
       list.innerHTML = '<div class="history-empty"><span class="serif">Nothing yet</span>Your first completed session will show up here.</div>';
       editingIdx = null;
@@ -1619,6 +1630,60 @@
       const honored = redSessions.filter(function(s){ return !s.preState.overridden; }).length;
       redEl.textContent = honored + '/' + redSessions.length;
     }
+  }
+
+  /* ---------- Evidence: facts only, each gated by its own minimum sample size ---------- */
+  const EV_MIN = 5;
+  function renderEvidence(history){
+    const card = document.getElementById('evidenceCard');
+    const list = document.getElementById('evidenceList');
+    if(history.length === 0){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    const scored = history.filter(function(s){ return s.preState && s.preState.calculated; });
+    const redTraded = scored.filter(function(s){ return s.preState.classification === 'red' && s.preState.overridden && s.trades && s.trades.length > 0; });
+    const overrideTraded = history.filter(function(s){ return s.overrides && s.overrides.length > 0 && s.trades && s.trades.length > 0; });
+    const greenTraded = scored.filter(function(s){ return s.preState.classification === 'green' && s.trades && s.trades.length > 0; });
+    const yellowTraded = scored.filter(function(s){ return s.preState.classification === 'yellow' && s.trades && s.trades.length > 0; });
+    const nonRedTraded = scored.filter(function(s){ return s.preState.classification !== 'red' && s.trades && s.trades.length > 0; });
+
+    const items = [];
+
+    if(redTraded.length >= EV_MIN){
+      const neg = redTraded.filter(function(s){ return computeNet(s.trades) <= 0; }).length;
+      items.push({ ready:true, text: Math.round(neg/redTraded.length*100)+'% of your '+redTraded.length+' Red-state trading sessions ended net negative or flat.' });
+    } else {
+      items.push({ ready:false, text:'Red-state trading outcome', have: redTraded.length, need: EV_MIN });
+    }
+
+    if(overrideTraded.length >= EV_MIN){
+      const neg = overrideTraded.filter(function(s){ return computeNet(s.trades) <= 0; }).length;
+      items.push({ ready:true, text: Math.round(neg/overrideTraded.length*100)+'% of your '+overrideTraded.length+' sessions with an override ended net negative or flat.' });
+    } else {
+      items.push({ ready:false, text:'Outcome of sessions with an override', have: overrideTraded.length, need: EV_MIN });
+    }
+
+    if(greenTraded.length >= EV_MIN && yellowTraded.length >= EV_MIN){
+      const avgG = greenTraded.reduce(function(s,x){ return s+computeNet(x.trades); },0) / greenTraded.length;
+      const avgY = yellowTraded.reduce(function(s,x){ return s+computeNet(x.trades); },0) / yellowTraded.length;
+      items.push({ ready:true, text: 'Average net on Green days: $'+avgG.toFixed(2)+' — on Yellow days: $'+avgY.toFixed(2)+' (n='+greenTraded.length+'/'+yellowTraded.length+').' });
+    } else {
+      items.push({ ready:false, text:'Green vs Yellow average net', have: Math.min(greenTraded.length, yellowTraded.length), need: EV_MIN });
+    }
+
+    if(redTraded.length >= EV_MIN && nonRedTraded.length >= EV_MIN){
+      const avgR = redTraded.reduce(function(s,x){ return s+computeNet(x.trades); },0) / redTraded.length;
+      const avgO = nonRedTraded.reduce(function(s,x){ return s+computeNet(x.trades); },0) / nonRedTraded.length;
+      items.push({ ready:true, text: 'Red-state sessions average $'+avgR.toFixed(2)+' per session — Green/Yellow sessions average $'+avgO.toFixed(2)+'.' });
+    } else {
+      items.push({ ready:false, text:'Red-state vs Green/Yellow average net', have: Math.min(redTraded.length, nonRedTraded.length), need: EV_MIN });
+    }
+
+    list.innerHTML = items.map(function(it){
+      if(it.ready) return '<div class="evidence-item">'+escapeHtml(it.text)+'</div>';
+      return '<div class="evidence-item locked">'+escapeHtml(it.text)
+        + '<div class="evidence-progress">Not enough data yet — '+it.have+'/'+it.need+' sessions logged</div></div>';
+    }).join('');
   }
 
   function escapeHtml(s){
