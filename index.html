@@ -27,6 +27,9 @@
     --danger:#e5707a;
     --danger-deep:#b8505a;
     --danger-dim:rgba(229,112,122,0.12);
+    --gold:#c9a15a;
+    --gold-deep:#a17f3f;
+    --gold-dim:rgba(201,161,90,0.13);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
@@ -174,6 +177,40 @@
   .overlay-title{font-size:16px;font-weight:600;margin-bottom:8px;}
   .overlay-text{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:16px;}
   .cooldown-timer{font-family:'Fraunces',serif;font-size:36px;color:var(--danger);margin:10px 0;}
+
+  /* Trading State Check: sliders */
+  .slider-field{margin-bottom:18px;}
+  .slider-field:last-child{margin-bottom:0;}
+  .slider-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .slider-row label{font-size:13px;color:var(--ink);}
+  .slider-val{font-family:'Fraunces',serif;font-size:16px;color:var(--accent);}
+  input[type="range"]{
+    -webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--surface2);outline:none;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);
+    border:2px solid var(--void);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:18px;height:18px;border-radius:50%;background:var(--accent);border:2px solid var(--void);cursor:pointer;
+  }
+  input[type="range"].stress-slider::-webkit-slider-thumb{background:var(--danger);}
+  input[type="range"].stress-slider::-moz-range-thumb{background:var(--danger);}
+
+  /* Trading State Check: result */
+  .sc-score{font-family:'Fraunces',serif;font-size:44px;text-align:center;margin-bottom:4px;}
+  .sc-score.green{color:var(--accent);}
+  .sc-score.yellow{color:var(--gold);}
+  .sc-score.red{color:var(--danger);}
+  .sc-classification{text-align:center;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px;color:var(--dim);}
+  .sc-message{text-align:center;font-size:13.5px;color:var(--dim);line-height:1.6;}
+
+  /* Yellow banner in Trade stage */
+  .stage-banner{
+    border-radius:14px;padding:13px 16px;margin-bottom:16px;font-size:13px;line-height:1.5;
+    border:1px solid var(--gold);background:var(--gold-dim);color:var(--gold);
+  }
+  .stage-banner.danger{border-color:var(--danger);background:var(--danger-dim);color:var(--danger);}
 
   /* State check chips */
   .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
@@ -366,7 +403,7 @@
       </svg>
       <div class="state-ring-label">
         <div class="state-ring-stage" id="stateRingStage">Prepare</div>
-        <div class="state-ring-sub" id="stateRingSub">Step 1 of 3</div>
+        <div class="state-ring-sub" id="stateRingSub">Step 1 of 4</div>
       </div>
     </div>
   </div>
@@ -400,10 +437,102 @@
       <button class="btn btn-primary" id="beginTradingBtn" disabled>Begin Trading</button>
     </section>
 
+    <!-- ============ STATE CHECK ============ -->
+    <section class="stage" id="stage-statecheck">
+      <h1>Trading State Check</h1>
+      <p class="stage-sub">Rate where you actually are, not where you want to be.</p>
+
+      <div class="card">
+        <div class="card-label">Rate yourself, 1–10</div>
+        <div class="slider-field" data-key="sleep">
+          <div class="slider-row"><label>Sleep</label><span class="slider-val" id="scVal-sleep">5</span></div>
+          <input type="range" min="1" max="10" value="5" id="scSlider-sleep">
+        </div>
+        <div class="slider-field" data-key="energy">
+          <div class="slider-row"><label>Energy</label><span class="slider-val" id="scVal-energy">5</span></div>
+          <input type="range" min="1" max="10" value="5" id="scSlider-energy">
+        </div>
+        <div class="slider-field" data-key="focus">
+          <div class="slider-row"><label>Focus</label><span class="slider-val" id="scVal-focus">5</span></div>
+          <input type="range" min="1" max="10" value="5" id="scSlider-focus">
+        </div>
+        <div class="slider-field" data-key="calmness">
+          <div class="slider-row"><label>Calmness</label><span class="slider-val" id="scVal-calmness">5</span></div>
+          <input type="range" min="1" max="10" value="5" id="scSlider-calmness">
+        </div>
+        <div class="slider-field" data-key="stress">
+          <div class="slider-row"><label>Stress</label><span class="slider-val" id="scVal-stress">5</span></div>
+          <input type="range" class="stress-slider" min="1" max="10" value="5" id="scSlider-stress">
+          <div class="field-hint">Higher stress lowers your score.</div>
+        </div>
+        <div class="slider-field" data-key="patience">
+          <div class="slider-row"><label>Patience</label><span class="slider-val" id="scVal-patience">5</span></div>
+          <input type="range" min="1" max="10" value="5" id="scSlider-patience">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Before you trade</div>
+        <div class="check-question">
+          <div class="check-question-text">Trading plan reviewed?</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-scq="planReviewed" data-v="yes">Yes</button>
+            <button class="toggle-btn" data-scq="planReviewed" data-v="no">No</button>
+          </div>
+        </div>
+        <div class="check-question">
+          <div class="check-question-text">Desk distraction-free? (no phone, no extra tabs)</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-scq="deskClear" data-v="yes">Yes</button>
+            <button class="toggle-btn" data-scq="deskClear" data-v="no">No</button>
+          </div>
+        </div>
+        <div class="check-question">
+          <div class="check-question-text">No urge to recover losses right now?</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-scq="noUrge" data-v="yes">Yes</button>
+            <button class="toggle-btn" data-scq="noUrge" data-v="no">No</button>
+          </div>
+        </div>
+        <div class="check-question">
+          <div class="check-question-text">Willing to skip today if no A+ setup appears?</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-scq="willingToSkip" data-v="yes">Yes</button>
+            <button class="toggle-btn" data-scq="willingToSkip" data-v="no">No</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="scResultCard" style="display:none;">
+        <div class="card-label">Your state</div>
+        <div class="sc-score" id="scScoreNum">0</div>
+        <div class="sc-classification" id="scClassLabel"></div>
+        <div class="sc-message" id="scMessageText"></div>
+      </div>
+
+      <button class="btn btn-primary" id="calcStateBtn" disabled>Calculate</button>
+      <button class="btn btn-primary" id="proceedStateBtn" style="display:none;margin-top:10px;">Continue to Trading</button>
+
+      <div id="scRedBlockArea" style="display:none;margin-top:16px;">
+        <div class="stage-overlay danger">
+          <div class="overlay-icon">■</div>
+          <div class="overlay-title">Red State</div>
+          <div class="overlay-text">You marked yourself below your own bar. Protect your capital by protecting your mind. Type the phrase below if you're trading anyway — it'll be logged.</div>
+          <div class="field">
+            <input type="text" id="scOverridePhraseInput" placeholder="I am overriding my own state check">
+          </div>
+          <button class="btn btn-danger" id="scOverrideBtn">Override anyway</button>
+          <button class="btn btn-ghost" id="scSkipDayBtn" style="margin-top:10px;">Sit this one out — go to Reflect</button>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ TRADE ============ -->
     <section class="stage" id="stage-trade">
       <h1>Trading</h1>
       <p class="stage-sub">One trade at a time. Answer honestly before each one.</p>
+
+      <div class="stage-banner" id="yellowStateBanner" style="display:none;">Reduce risk. Maximum one A+ trade.</div>
 
       <div class="tally">
         <div class="tally-item">
@@ -522,6 +651,19 @@
       <span><i class="legend-dot" style="background:var(--accent)"></i>Calm/Focused</span>
       <span><i class="legend-dot" style="background:var(--danger)"></i>Anxious/Chasing/Distracted</span>
     </div>
+  </div>
+  <div class="card" id="scoreChartCard" style="display:none;">
+    <div class="card-label">State score by session</div>
+    <div id="scoreChartWrap" style="position:relative;"></div>
+    <div id="scoreChartTooltip" class="chart-tooltip"></div>
+    <div class="chart-legend">
+      <span><i class="legend-dot" style="background:var(--accent)"></i>No override</span>
+      <span><i class="legend-dot" style="background:var(--danger)"></i>Overrode a limit</span>
+    </div>
+  </div>
+  <div class="card" id="disciplineChartCard" style="display:none;">
+    <div class="card-label">Sessions by state, and whether you traded anyway</div>
+    <div id="disciplineChartWrap"></div>
   </div>
   <div id="historyList"></div>
 </div>
@@ -662,6 +804,7 @@
       sessionsPlanned: 1,
       trades: [],
       overrides: [],
+      preState: null,
       stateCheck: null,
       notes: '',
       nextPlan: '',
@@ -685,9 +828,9 @@
     const fill = document.getElementById('stateRingFill');
     const stageEl = document.getElementById('stateRingStage');
     const subEl = document.getElementById('stateRingSub');
-    const map = { prepare: [1,'Prepare','Step 1 of 3'], trade: [2,'Trading','Step 2 of 3'], reflect: [3,'Reflect','Step 3 of 3'] };
+    const map = { prepare: [1,'Prepare','Step 1 of 4'], statecheck: [2,'State Check','Step 2 of 4'], trade: [3,'Trading','Step 3 of 4'], reflect: [4,'Reflect','Step 4 of 4'] };
     const info = map[session.stage] || map.prepare;
-    const frac = info[0] / 3;
+    const frac = info[0] / 4;
     fill.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - frac));
     stageEl.textContent = info[1];
     subEl.textContent = info[2];
@@ -756,8 +899,140 @@
     persistActive();
   });
   document.getElementById('beginTradingBtn').addEventListener('click', function(){
+    showStage('statecheck');
+    renderStateCheck();
+  });
+
+  /* ---------- STATE CHECK ---------- */
+  const SC_SLIDER_KEYS = ['sleep','energy','focus','calmness','stress','patience'];
+  const SC_CHECK_KEYS = ['planReviewed','deskClear','noUrge','willingToSkip'];
+
+  function scDraft(){
+    if(!session.preState){
+      session.preState = {
+        sleep:5, energy:5, focus:5, calmness:5, stress:5, patience:5,
+        planReviewed:null, deskClear:null, noUrge:null, willingToSkip:null,
+        score:null, classification:null, overridden:false, calculated:false
+      };
+    }
+    return session.preState;
+  }
+
+  function renderStateCheck(){
+    const st = scDraft();
+    SC_SLIDER_KEYS.forEach(function(key){
+      document.getElementById('scSlider-'+key).value = st[key];
+      document.getElementById('scVal-'+key).textContent = st[key];
+    });
+    document.querySelectorAll('[data-scq]').forEach(function(btn){
+      const key = btn.dataset.scq;
+      btn.classList.toggle('selected', st[key] === btn.dataset.v);
+    });
+    document.getElementById('scResultCard').style.display = st.calculated ? 'block' : 'none';
+    document.getElementById('proceedStateBtn').style.display = (st.calculated && st.classification !== 'red') ? 'block' : 'none';
+    document.getElementById('scRedBlockArea').style.display = (st.calculated && st.classification === 'red' && !st.overridden) ? 'block' : 'none';
+    if(st.calculated) renderScResult();
+    scValidate();
+  }
+
+  SC_SLIDER_KEYS.forEach(function(key){
+    document.getElementById('scSlider-'+key).addEventListener('input', function(){
+      scDraft()[key] = parseInt(this.value, 10);
+      document.getElementById('scVal-'+key).textContent = this.value;
+      scDraft().calculated = false;
+      document.getElementById('scResultCard').style.display = 'none';
+      document.getElementById('proceedStateBtn').style.display = 'none';
+      document.getElementById('scRedBlockArea').style.display = 'none';
+      persistActive();
+      scValidate();
+    });
+  });
+  document.querySelectorAll('[data-scq]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const key = btn.dataset.scq;
+      scDraft()[key] = btn.dataset.v;
+      document.querySelectorAll('[data-scq="'+key+'"]').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      scDraft().calculated = false;
+      document.getElementById('scResultCard').style.display = 'none';
+      document.getElementById('proceedStateBtn').style.display = 'none';
+      document.getElementById('scRedBlockArea').style.display = 'none';
+      persistActive();
+      scValidate();
+    });
+  });
+  function scValidate(){
+    const st = scDraft();
+    const allAnswered = SC_CHECK_KEYS.every(function(k){ return st[k] === 'yes' || st[k] === 'no'; });
+    document.getElementById('calcStateBtn').disabled = !allAnswered;
+  }
+
+  function scComputeScore(st){
+    let slidersScore = 0;
+    SC_SLIDER_KEYS.forEach(function(key){
+      const v = st[key];
+      slidersScore += (key === 'stress') ? (11 - v) : v;
+    });
+    let checksScore = 0;
+    SC_CHECK_KEYS.forEach(function(key){ if(st[key] === 'yes') checksScore += 10; });
+    return Math.max(0, Math.min(100, slidersScore + checksScore));
+  }
+  function scClassify(score){
+    if(score >= 85) return 'green';
+    if(score >= 70) return 'yellow';
+    return 'red';
+  }
+  function renderScResult(){
+    const st = scDraft();
+    const num = document.getElementById('scScoreNum');
+    const label = document.getElementById('scClassLabel');
+    const msg = document.getElementById('scMessageText');
+    num.textContent = st.score;
+    num.className = 'sc-score ' + st.classification;
+    const copy = {
+      green: ['Green State', 'Trade normally. Focus only on execution.'],
+      yellow: ['Yellow State', 'Reduce risk. Maximum one A+ trade.'],
+      red: ['Red State', 'Do not trade today. Protect your capital by protecting your mind.']
+    }[st.classification];
+    label.textContent = copy[0];
+    label.style.color = st.classification === 'green' ? 'var(--accent)' : st.classification === 'yellow' ? 'var(--gold)' : 'var(--danger)';
+    msg.textContent = copy[1];
+  }
+  document.getElementById('calcStateBtn').addEventListener('click', function(){
+    const st = scDraft();
+    st.score = scComputeScore(st);
+    st.classification = scClassify(st.score);
+    st.calculated = true;
+    persistActive();
+    document.getElementById('scResultCard').style.display = 'block';
+    document.getElementById('proceedStateBtn').style.display = (st.classification !== 'red') ? 'block' : 'none';
+    document.getElementById('scRedBlockArea').style.display = (st.classification === 'red') ? 'block' : 'none';
+    renderScResult();
+  });
+  document.getElementById('proceedStateBtn').addEventListener('click', function(){
+    enterTradeFromStateCheck();
+  });
+  document.getElementById('scOverrideBtn').addEventListener('click', function(){
+    const input = document.getElementById('scOverridePhraseInput');
+    if(input.value.trim().toLowerCase() !== 'i am overriding my own state check'){
+      showToast('Type the exact phrase to continue');
+      return;
+    }
+    const st = scDraft();
+    st.overridden = true;
+    session.overrides.push({ time: Date.now(), note: 'Overrode Red state check (score '+st.score+')' });
+    input.value = '';
+    persistActive();
+    document.getElementById('scRedBlockArea').style.display = 'none';
+    enterTradeFromStateCheck();
+  });
+  function enterTradeFromStateCheck(){
     showStage('trade');
     renderTrade();
+  }
+  document.getElementById('scSkipDayBtn').addEventListener('click', function(){
+    showStage('reflect');
+    renderReflect();
   });
 
   /* ---------- TRADE ---------- */
@@ -780,8 +1055,22 @@
 
     pendingFearRead = null;
     pendingChasing = null;
-    document.querySelectorAll('.toggle-btn').forEach(function(b){ b.classList.remove('selected','warn'); });
+    document.querySelectorAll('#tradeActiveArea .toggle-btn').forEach(function(b){ b.classList.remove('selected','warn'); });
     document.getElementById('tradeAmountInput').value = '';
+
+    const banner = document.getElementById('yellowStateBanner');
+    const st = session.preState;
+    if(st && st.classification === 'yellow'){
+      banner.textContent = 'Reduce risk. Maximum one A+ trade.';
+      banner.classList.remove('danger');
+      banner.style.display = 'block';
+    } else if(st && st.classification === 'red' && st.overridden){
+      banner.textContent = 'You overrode a Red state check. You are trading against your own honest read of yourself.';
+      banner.classList.add('danger');
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
 
     checkGates();
   }
@@ -947,6 +1236,8 @@
     const clearBtn = document.getElementById('clearHistoryBtn');
     clearBtn.style.display = history.length ? 'block' : 'none';
     renderChart(history);
+    renderScoreChart(history);
+    renderDisciplineChart(history);
     if(!history.length){
       list.innerHTML = '<div class="history-empty"><span class="serif">Nothing yet</span>Your first completed session will show up here.</div>';
       editingIdx = null;
@@ -1204,6 +1495,94 @@
     document.addEventListener('click', function(){ openTipIdx = null; hideTip(); });
   }
 
+  /* ---------- State Score chart (score per session, colored by whether a limit was overridden) ---------- */
+  function renderScoreChart(history){
+    const card = document.getElementById('scoreChartCard');
+    const wrap = document.getElementById('scoreChartWrap');
+    const scored = history.filter(function(s){ return s.preState && s.preState.calculated; });
+    if(scored.length < 2){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const chrono = scored.slice().reverse();
+    const w = 320, h = 140, pad = 10;
+    const yFor = function(score){ return h - pad - (score/100) * (h - pad*2); };
+    const xStep = (w - pad*2) / Math.max(1, chrono.length - 1);
+    const points = chrono.map(function(s, i){ return [pad + i*xStep, yFor(s.preState.score)]; });
+    const path = points.map(function(p, i){ return (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+    const dots = points.map(function(p, i){
+      const overrode = (chrono[i].overrides && chrono[i].overrides.length > 0);
+      const color = overrode ? 'var(--danger)' : 'var(--accent)';
+      return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.5" fill="'+color+'"></circle>'
+        + '<circle class="score-dot-hit" data-i="'+i+'" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="10" fill="transparent"></circle>';
+    }).join('');
+    wrap.innerHTML = '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;">'
+      + '<line x1="0" y1="'+yFor(85)+'" x2="'+w+'" y2="'+yFor(85)+'" stroke="var(--line)" stroke-width="1" stroke-dasharray="3,3"></line>'
+      + '<line x1="0" y1="'+yFor(70)+'" x2="'+w+'" y2="'+yFor(70)+'" stroke="var(--line)" stroke-width="1" stroke-dasharray="3,3"></line>'
+      + '<path d="'+path+'" fill="none" stroke="var(--dim2)" stroke-width="1.5"></path>'
+      + dots + '</svg>';
+
+    const tooltip = document.getElementById('scoreChartTooltip');
+    function showTip(i, hitEl){
+      const s = chrono[i];
+      const d = new Date(s.startedAt);
+      const overrode = (s.overrides && s.overrides.length > 0);
+      tooltip.innerHTML = '<div class="tt-date">'+d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+'</div>'
+        + 'Score '+s.preState.score+' ('+s.preState.classification+')'+(overrode ? '<br><strong style="color:var(--danger)">Overrode a limit</strong>' : '');
+      tooltip.style.visibility = 'hidden';
+      tooltip.classList.add('show');
+      const hitRect = hitEl.getBoundingClientRect();
+      const ttRect = tooltip.getBoundingClientRect();
+      const showBelow = hitRect.top < ttRect.height + 16;
+      let left = hitRect.left + hitRect.width/2;
+      left = Math.max(ttRect.width/2 + 8, Math.min(window.innerWidth - ttRect.width/2 - 8, left));
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = showBelow ? (hitRect.bottom + 8) + 'px' : (hitRect.top - ttRect.height - 8) + 'px';
+      tooltip.style.visibility = 'visible';
+    }
+    function hideTip(){ tooltip.classList.remove('show'); }
+    let openTipIdx = null;
+    wrap.querySelectorAll('.score-dot-hit').forEach(function(hit){
+      hit.addEventListener('mouseenter', function(){ showTip(parseInt(hit.dataset.i,10), hit); });
+      hit.addEventListener('mouseleave', function(){ if(openTipIdx===null) hideTip(); });
+      hit.addEventListener('click', function(e){
+        e.stopPropagation();
+        const i = parseInt(hit.dataset.i,10);
+        if(openTipIdx === i){ openTipIdx = null; hideTip(); }
+        else { openTipIdx = i; showTip(i, hit); }
+      });
+    });
+    document.addEventListener('click', function(){ openTipIdx = null; hideTip(); });
+  }
+
+  /* ---------- Discipline chart (sessions per classification, Red split by overridden-or-not) ---------- */
+  function renderDisciplineChart(history){
+    const card = document.getElementById('disciplineChartCard');
+    const wrap = document.getElementById('disciplineChartWrap');
+    const scored = history.filter(function(s){ return s.preState && s.preState.calculated; });
+    if(scored.length < 2){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const counts = { green:0, yellow:0, redHonored:0, redOverridden:0 };
+    scored.forEach(function(s){
+      if(s.preState.classification === 'green') counts.green++;
+      else if(s.preState.classification === 'yellow') counts.yellow++;
+      else if(s.preState.overridden) counts.redOverridden++;
+      else counts.redHonored++;
+    });
+    const rows = [
+      { label:'Green', value:counts.green, color:'var(--accent)' },
+      { label:'Yellow', value:counts.yellow, color:'var(--gold)' },
+      { label:'Red — honored', value:counts.redHonored, color:'var(--dim2)' },
+      { label:'Red — traded anyway', value:counts.redOverridden, color:'var(--danger)' }
+    ];
+    const max = Math.max(1, counts.green, counts.yellow, counts.redHonored, counts.redOverridden);
+    wrap.innerHTML = rows.map(function(r){
+      const pct = Math.round((r.value / max) * 100);
+      return '<div style="margin-bottom:12px;">'
+        + '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:5px;"><span>'+r.label+'</span><span>'+r.value+'</span></div>'
+        + '<div style="height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+r.color+';border-radius:4px;"></div></div>'
+        + '</div>';
+    }).join('');
+  }
+
   function escapeHtml(s){
     const d = document.createElement('div');
     d.textContent = s;
@@ -1310,6 +1689,7 @@
   // person explicitly completes a day or opens the app with no active session at all.
   showStage(session.stage === 'done' ? 'prepare' : session.stage);
   renderPrepare();
+  if(session.stage === 'statecheck') renderStateCheck();
   if(session.stage === 'trade') renderTrade();
   if(session.stage === 'reflect') renderReflect();
 
