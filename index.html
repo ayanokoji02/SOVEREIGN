@@ -2253,7 +2253,7 @@
 
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+    getAuth, GoogleAuthProvider, signInWithPopup,
     onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
@@ -2391,7 +2391,13 @@
     }
   }
 
-  signInBtn.addEventListener('click', function(){ signInWithRedirect(auth, provider); });
+  signInBtn.addEventListener('click', function(){
+    signInWithPopup(auth, provider).catch(function(e){
+      console.error('Sovereign sign-in error:', e);
+      configWarning.textContent = 'Sign-in failed: ' + (e.code || e.message || 'unknown error');
+      configWarning.style.display = 'block';
+    });
+  });
   document.getElementById('signOutBtn').addEventListener('click', function(){ signOut(auth); });
   document.getElementById('migrateYesBtn').addEventListener('click', function(){
     migrationModal.classList.remove('open');
@@ -2409,8 +2415,6 @@
     auth = getAuth(app);
     db = getFirestore(app);
     provider = new GoogleAuthProvider();
-
-    getRedirectResult(auth).catch(function(e){ console.error('Sovereign sign-in redirect error:', e); });
 
     onAuthStateChanged(auth, function(user){
       if(user){
