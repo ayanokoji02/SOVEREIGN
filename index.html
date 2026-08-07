@@ -230,6 +230,8 @@
 
   /* Account cooldown (Context stage) */
   .account-cooldown-note{font-size:11px;color:var(--danger);margin-top:6px;}
+  .export-row{display:flex;flex-wrap:wrap;gap:10px;}
+  .export-row .btn{flex:1;min-width:140px;}
 
   /* State check chips */
   .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
@@ -767,6 +769,13 @@
   <div class="view-header-row">
     <h1>History</h1>
     <button class="text-danger-btn" id="clearHistoryBtn" style="display:none;">Clear All</button>
+  </div>
+  <div class="card" id="exportCard" style="display:none;">
+    <div class="card-label">Export</div>
+    <div class="export-row">
+      <button class="btn btn-ghost" id="exportCsvBtn">Download CSV</button>
+      <button class="btn btn-ghost" id="exportReportBtn">Download Summary Report</button>
+    </div>
   </div>
   <div class="card" id="evidenceCard" style="display:none;">
     <div class="card-label">Evidence</div>
@@ -1703,6 +1712,7 @@
     renderDisciplineChart(history);
     renderIntegrity(history);
     renderEvidence(history);
+    document.getElementById('exportCard').style.display = history.length > 0 ? 'block' : 'none';
     if(!history.length){
       list.innerHTML = '<div class="history-empty"><span class="serif">Nothing yet</span>Your first completed session will show up here.</div>';
       editingIdx = null;
@@ -2049,31 +2059,28 @@
   }
 
   /* ---------- Integrity: only what's actually variable, no padded always-true criteria ---------- */
+  function computeIntegrityStats(history){
+    const totalOverrides = history.reduce(function(sum, s){ return sum + (s.overrides ? s.overrides.length : 0); }, 0);
+    const redSessions = history.filter(function(s){ return s.preState && s.preState.calculated && s.preState.classification === 'red'; });
+    let redHonoredText = '—';
+    if(redSessions.length > 0){
+      const honored = redSessions.filter(function(s){ return !s.preState.overridden; }).length;
+      redHonoredText = honored + '/' + redSessions.length;
+    }
+    return { totalOverrides: totalOverrides, redHonoredText: redHonoredText };
+  }
   function renderIntegrity(history){
     const card = document.getElementById('integrityCard');
     if(history.length === 0){ card.style.display = 'none'; return; }
     card.style.display = 'block';
-    const totalOverrides = history.reduce(function(sum, s){ return sum + (s.overrides ? s.overrides.length : 0); }, 0);
-    document.getElementById('integrityOverrides').textContent = totalOverrides;
-
-    const redSessions = history.filter(function(s){ return s.preState && s.preState.calculated && s.preState.classification === 'red'; });
-    const redEl = document.getElementById('integrityRedHonored');
-    if(redSessions.length === 0){
-      redEl.textContent = '—';
-    } else {
-      const honored = redSessions.filter(function(s){ return !s.preState.overridden; }).length;
-      redEl.textContent = honored + '/' + redSessions.length;
-    }
+    const stats = computeIntegrityStats(history);
+    document.getElementById('integrityOverrides').textContent = stats.totalOverrides;
+    document.getElementById('integrityRedHonored').textContent = stats.redHonoredText;
   }
 
   /* ---------- Evidence: facts only, each gated by its own minimum sample size ---------- */
   const EV_MIN = 5;
-  function renderEvidence(history){
-    const card = document.getElementById('evidenceCard');
-    const list = document.getElementById('evidenceList');
-    if(history.length === 0){ card.style.display = 'none'; return; }
-    card.style.display = 'block';
-
+  function computeEvidenceItems(history){
     const scored = history.filter(function(s){ return s.preState && s.preState.calculated; });
     const redTraded = scored.filter(function(s){ return s.preState.classification === 'red' && s.preState.overridden && s.trades && s.trades.length > 0; });
     const overrideTraded = history.filter(function(s){ return s.overrides && s.overrides.length > 0 && s.trades && s.trades.length > 0; });
@@ -2112,6 +2119,14 @@
     } else {
       items.push({ ready:false, text:'Red-state vs Green/Yellow average net', have: Math.min(redTraded.length, nonRedTraded.length), need: EV_MIN });
     }
+    return items;
+  }
+  function renderEvidence(history){
+    const card = document.getElementById('evidenceCard');
+    const list = document.getElementById('evidenceList');
+    if(history.length === 0){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const items = computeEvidenceItems(history);
 
     list.innerHTML = items.map(function(it){
       if(it.ready) return '<div class="evidence-item">'+escapeHtml(it.text)+'</div>';
@@ -2232,6 +2247,102 @@
     switchView('today');
     renderPrepare();
     showToast('Rituals updated');
+  });
+
+  /* ---------- Export ---------- */
+  function downloadBlob(filename, content, mimeType){
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  function csvEscape(v){
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }
+  function buildCsv(history){
+    const cols = ['Date','Account','Model','Regime','WeeklyBias','MonthlyBias','PermissionScore','Classification','PermissionOverridden','Trades','NetUSD','ReflectState','FullBlow','OverridesThisSession'];
+    const rows = [cols.join(',')];
+    history.slice().reverse().forEach(function(s){
+      const d = new Date(s.completedAt || s.startedAt);
+      const ctx = s.context || {};
+      const pre = s.preState || {};
+      rows.push([
+        d.toISOString().slice(0,10),
+        ctx.accountType || '',
+        ctx.model || '',
+        ctx.regime || '',
+        ctx.weeklyBias || '',
+        ctx.monthlyBias || '',
+        pre.calculated ? pre.score : '',
+        pre.calculated ? pre.classification : '',
+        pre.overridden ? 'yes' : 'no',
+        (s.trades || []).length,
+        computeNet(s.trades || []).toFixed(2),
+        s.stateCheck || '',
+        s.blowFlag ? 'yes' : 'no',
+        (s.overrides || []).length
+      ].map(csvEscape).join(','));
+    });
+    return rows.join('\n');
+  }
+  function buildSummaryReport(history){
+    const now = new Date();
+    const totalNet = history.reduce(function(sum,s){ return sum + computeNet(s.trades||[]); }, 0);
+    const totalTrades = history.reduce(function(sum,s){ return sum + (s.trades||[]).length; }, 0);
+    const integrity = computeIntegrityStats(history);
+    const evidence = computeEvidenceItems(history);
+    const first = history[history.length-1];
+    const firstDate = first ? new Date(first.startedAt).toISOString().slice(0,10) : '—';
+    const lastDate = history[0] ? new Date(history[0].completedAt || history[0].startedAt).toISOString().slice(0,10) : '—';
+
+    let out = 'SOVEREIGN — SUMMARY REPORT\n';
+    out += 'Generated: ' + now.toISOString().slice(0,10) + '\n';
+    out += 'Range: ' + firstDate + ' to ' + lastDate + '\n';
+    out += '='.repeat(50) + '\n\n';
+
+    out += 'OVERVIEW\n';
+    out += '-'.repeat(50) + '\n';
+    out += 'Total sessions: ' + history.length + '\n';
+    out += 'Total trades: ' + totalTrades + '\n';
+    out += 'Total net: $' + totalNet.toFixed(2) + '\n\n';
+
+    out += 'INTEGRITY\n';
+    out += '-'.repeat(50) + '\n';
+    out += 'Overrides logged: ' + integrity.totalOverrides + '\n';
+    out += 'Red days honored: ' + integrity.redHonoredText + '\n\n';
+
+    out += 'EVIDENCE\n';
+    out += '-'.repeat(50) + '\n';
+    evidence.forEach(function(it){
+      out += it.ready ? ('- ' + it.text + '\n') : ('- ' + it.text + ' (not enough data yet — ' + it.have + '/' + it.need + ')\n');
+    });
+    out += '\n';
+
+    out += 'SESSION LOG\n';
+    out += '-'.repeat(50) + '\n';
+    history.slice().reverse().forEach(function(s){
+      const d = new Date(s.completedAt || s.startedAt).toISOString().slice(0,10);
+      const ctx = s.context || {};
+      const pre = s.preState || {};
+      const net = computeNet(s.trades||[]);
+      out += d + ' | ' + (ctx.accountType||'—') + ' | ' + (ctx.model||'—')
+        + ' | Permission: ' + (pre.calculated ? pre.score+' ('+pre.classification+')' : '—')
+        + ' | Trades: ' + (s.trades||[]).length + ' | Net: $' + net.toFixed(2)
+        + (s.blowFlag ? ' | FULL BLOW' : '') + (pre.overridden ? ' | OVERRODE' : '') + '\n';
+    });
+
+    return out;
+  }
+  document.getElementById('exportCsvBtn').addEventListener('click', function(){
+    const history = load(STORAGE.history, []);
+    downloadBlob('sovereign_history_' + todayISO() + '.csv', buildCsv(history), 'text/csv');
+  });
+  document.getElementById('exportReportBtn').addEventListener('click', function(){
+    const history = load(STORAGE.history, []);
+    downloadBlob('sovereign_report_' + todayISO() + '.txt', buildSummaryReport(history), 'text/plain');
   });
 
   /* ---------- Init ---------- */
