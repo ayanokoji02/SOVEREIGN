@@ -833,9 +833,10 @@
   <div class="confirm-box">
     <div class="confirm-icon">◆</div>
     <div class="confirm-title">Sovereign</div>
-    <p class="confirm-text">Sign in to sync your data across devices.</p>
+    <p class="confirm-text" id="authCheckingText">Checking sign-in…</p>
+    <p class="confirm-text" id="authSignedOutText" style="display:none;">Sign in to sync your data across devices.</p>
     <div id="authConfigWarning" style="display:none;color:var(--danger);font-size:12px;margin-bottom:14px;">Firebase isn't configured yet — see SETUP.md.</div>
-    <button class="btn btn-primary" id="googleSignInBtn">Sign in with Google</button>
+    <button class="btn btn-primary" id="googleSignInBtn" style="display:none;">Sign in with Google</button>
   </div>
 </div>
 
@@ -2277,7 +2278,9 @@
   const emailEl = document.getElementById('accountEmailText');
 
   if(firebaseConfig.apiKey === 'YOUR_API_KEY'){
+    document.getElementById('authCheckingText').style.display = 'none';
     configWarning.style.display = 'block';
+    signInBtn.style.display = 'block';
     signInBtn.disabled = true;
     signInBtn.style.opacity = '0.4';
   }
@@ -2424,11 +2427,17 @@
       } else {
         currentUid = null;
         sessionStorage.removeItem('sovereign_hydrated');
+        document.getElementById('authCheckingText').style.display = 'none';
+        document.getElementById('authSignedOutText').style.display = 'block';
+        signInBtn.style.display = 'block';
         authGate.style.display = 'flex';
       }
     });
   }catch(e){
     console.error('Sovereign: Firebase failed to initialize — check firebaseConfig in index.html', e);
+    document.getElementById('authCheckingText').style.display = 'none';
+    configWarning.textContent = 'Firebase failed to start — check firebaseConfig and your connection.';
+    configWarning.style.display = 'block';
   }
 </script>
 </body>
