@@ -415,7 +415,7 @@
       </svg>
       <div class="state-ring-label">
         <div class="state-ring-stage" id="stateRingStage">Prepare</div>
-        <div class="state-ring-sub" id="stateRingSub">Step 1 of 4</div>
+        <div class="state-ring-sub" id="stateRingSub">Step 1 of 5</div>
       </div>
     </div>
   </div>
@@ -426,7 +426,19 @@
       <h1>Prepare</h1>
       <p class="stage-sub">Remove the battle before it starts. This decides more than the market does.</p>
 
-      <div class="card">
+      <div id="withdrawalGateArea" style="display:none;">
+        <div class="stage-overlay danger">
+          <div class="overlay-icon">■</div>
+          <div class="overlay-title">Withdrawal threshold hit</div>
+          <div class="overlay-text" id="withdrawalGateText"></div>
+          <div class="field">
+            <input type="text" id="withdrawalAckInput" placeholder="I withdrew">
+          </div>
+          <button class="btn btn-danger" id="withdrawalAckBtn">Confirm</button>
+        </div>
+      </div>
+
+      <div class="card" id="prepareRitualCard">
         <div class="card-label" style="display:flex;justify-content:space-between;align-items:center;">
           <span>Today's ritual</span>
           <button class="text-accent-btn" id="editRitualsBtn" style="padding:0;">Edit</button>
@@ -447,6 +459,60 @@
       </div>
 
       <button class="btn btn-primary" id="beginTradingBtn" disabled>Begin Trading</button>
+    </section>
+
+    <!-- ============ CONTEXT LOCK ============ -->
+    <section class="stage" id="stage-context">
+      <h1>HTF Context Lock</h1>
+      <p class="stage-sub">Locks for the session. To change any of this, close the day and start a fresh Prepare.</p>
+
+      <div class="card">
+        <div class="check-question">
+          <div class="check-question-text">Weekly bias</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-ctxq="weeklyBias" data-v="up">Up</button>
+            <button class="toggle-btn" data-ctxq="weeklyBias" data-v="down">Down</button>
+            <button class="toggle-btn" data-ctxq="weeklyBias" data-v="range">Range</button>
+          </div>
+        </div>
+        <div class="check-question">
+          <div class="check-question-text">Monthly bias</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-ctxq="monthlyBias" data-v="up">Up</button>
+            <button class="toggle-btn" data-ctxq="monthlyBias" data-v="down">Down</button>
+            <button class="toggle-btn" data-ctxq="monthlyBias" data-v="range">Range</button>
+          </div>
+        </div>
+        <div class="check-question">
+          <div class="check-question-text">Regime this session</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-ctxq="regime" data-v="trending">Trending</button>
+            <button class="toggle-btn" data-ctxq="regime" data-v="ranging">Ranging</button>
+            <button class="toggle-btn" data-ctxq="regime" data-v="reversal-prone">Reversal-prone</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="check-question">
+          <div class="check-question-text">Account</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-ctxq="accountType" data-v="prop">Prop</button>
+            <button class="toggle-btn" data-ctxq="accountType" data-v="live">Live</button>
+          </div>
+        </div>
+        <div class="check-question">
+          <div class="check-question-text">Primary model — locked for this session</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" data-ctxq="model" data-v="continuation">Continuation</button>
+            <button class="toggle-btn" data-ctxq="model" data-v="range">Range</button>
+            <button class="toggle-btn" data-ctxq="model" data-v="reversal" id="modelReversalBtn">Reversal</button>
+          </div>
+          <div class="field-hint" id="reversalHintText" style="display:none;">Reversal is unavailable on Prop accounts. No override — this one's permanent.</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="lockContextBtn" disabled>Lock Context</button>
     </section>
 
     <!-- ============ STATE CHECK ============ -->
@@ -614,6 +680,18 @@
         </div>
       </div>
 
+      <div id="modelLockArea" style="display:none;">
+        <div class="stage-overlay danger">
+          <div class="overlay-icon">■</div>
+          <div class="overlay-title">Model attempts used up</div>
+          <div class="overlay-text">Two attempts on this model, this session. That's the cap you set while calm. Type the phrase below if you're taking another anyway — it'll be logged.</div>
+          <div class="field">
+            <input type="text" id="modelOverridePhraseInput" placeholder="I am overriding my model lock">
+          </div>
+          <button class="btn btn-danger" id="modelOverrideBtn">Override anyway</button>
+        </div>
+      </div>
+
       <button class="btn btn-ghost" id="endSessionBtn" style="margin-top:16px;">End Session</button>
     </section>
 
@@ -740,6 +818,24 @@
     <textarea id="selfControlInput" placeholder="What full control actually feels like, specifically."></textarea>
   </div>
   <div class="save-note">Saves automatically as you type.</div>
+
+  <h1 style="margin-top:28px;">Withdrawal Rule</h1>
+  <p class="stage-sub">Live account only. When cumulative profit since baseline hits your target, you'll be asked to confirm before your next session.</p>
+  <div class="card">
+    <div class="field">
+      <label>Current baseline</label>
+      <input type="number" inputmode="decimal" id="wdBaselineInput" placeholder="e.g. 500">
+    </div>
+    <div class="field">
+      <label>Profit target above baseline</label>
+      <input type="number" inputmode="decimal" id="wdThresholdInput" placeholder="e.g. 100">
+    </div>
+    <div class="field">
+      <label>Withdraw this % when hit</label>
+      <input type="number" inputmode="decimal" id="wdPercentInput" placeholder="e.g. 50">
+    </div>
+    <div class="save-note">Saves automatically as you type.</div>
+  </div>
 </div>
 
 <div class="bottom-nav">
@@ -769,7 +865,9 @@
     active: 'sovereign_activeSession',
     selfWho: 'sovereign_selfWho',
     selfStyle: 'sovereign_selfStyle',
-    selfControl: 'sovereign_selfControl'
+    selfControl: 'sovereign_selfControl',
+    accountRules: 'sovereign_accountRules',
+    withdrawalLog: 'sovereign_withdrawalLog'
   };
 
   function todayISO(){
@@ -835,6 +933,8 @@
       overrides: [],
       preState: null,
       stateCheck: null,
+      context: { weeklyBias:null, monthlyBias:null, regime:null, accountType:null, model:null, locked:false },
+      modelLocked: false,
       notes: '',
       nextPlan: '',
       cooldownUntil: null,
@@ -844,6 +944,8 @@
   }
 
   let session = load(STORAGE.active, null) || newSession();
+  if(!session.context) session.context = { weeklyBias:null, monthlyBias:null, regime:null, accountType:null, model:null, locked:false };
+  if(typeof session.modelLocked !== 'boolean') session.modelLocked = false;
   let pendingFearRead = null;
   let pendingChasing = null;
   let cooldownInterval = null;
@@ -857,9 +959,9 @@
     const fill = document.getElementById('stateRingFill');
     const stageEl = document.getElementById('stateRingStage');
     const subEl = document.getElementById('stateRingSub');
-    const map = { prepare: [1,'Prepare','Step 1 of 4'], statecheck: [2,'Permission','Step 2 of 4'], trade: [3,'Trading','Step 3 of 4'], reflect: [4,'Reflect','Step 4 of 4'] };
+    const map = { prepare: [1,'Prepare','Step 1 of 5'], context: [2,'Context','Step 2 of 5'], statecheck: [3,'Permission','Step 3 of 5'], trade: [4,'Trading','Step 4 of 5'], reflect: [5,'Reflect','Step 5 of 5'] };
     const info = map[session.stage] || map.prepare;
-    const frac = info[0] / 4;
+    const frac = info[0] / 5;
     fill.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - frac));
     stageEl.textContent = info[1];
     subEl.textContent = info[2];
@@ -910,13 +1012,45 @@
     renderRitualRow();
     document.getElementById('lossLimitInput').value = session.lossLimit || '';
     document.getElementById('sessionsPlannedInput').value = session.sessionsPlanned || 1;
+    renderWithdrawalGate();
     validatePrepare();
   }
+  function renderWithdrawalGate(){
+    const rules = load(STORAGE.accountRules, null);
+    const gate = document.getElementById('withdrawalGateArea');
+    if(rules && rules.pendingAcknowledgment){
+      gate.style.display = 'block';
+      document.getElementById('withdrawalGateText').textContent =
+        'Cumulative live-account profit crossed $'+rules.thresholdAmount+' above your baseline. Withdraw '+rules.withdrawPercent+'% before continuing. Type the phrase below to confirm you did.';
+    } else {
+      gate.style.display = 'none';
+    }
+  }
+  document.getElementById('withdrawalAckBtn').addEventListener('click', function(){
+    const input = document.getElementById('withdrawalAckInput');
+    if(input.value.trim().toLowerCase() !== 'i withdrew'){
+      showToast('Type the exact phrase to continue');
+      return;
+    }
+    const rules = load(STORAGE.accountRules, {});
+    rules.pendingAcknowledgment = false;
+    rules.cumulativeNetSinceBaseline = 0;
+    save(STORAGE.accountRules, rules);
+    const log = load(STORAGE.withdrawalLog, []);
+    log.unshift({ time: Date.now(), amount: rules.thresholdAmount });
+    save(STORAGE.withdrawalLog, log);
+    input.value = '';
+    showToast('Withdrawal confirmed');
+    renderWithdrawalGate();
+    validatePrepare();
+  });
   function validatePrepare(){
     const rituals = getRituals();
     const allChecked = rituals.length > 0 && rituals.every(function(r){ return !!session.checklist[r.id]; });
     const hasLimit = session.lossLimit > 0;
-    document.getElementById('beginTradingBtn').disabled = !(allChecked && hasLimit);
+    const rules = load(STORAGE.accountRules, null);
+    const withdrawalBlocked = !!(rules && rules.pendingAcknowledgment);
+    document.getElementById('beginTradingBtn').disabled = !(allChecked && hasLimit) || withdrawalBlocked;
   }
   document.getElementById('lossLimitInput').addEventListener('input', function(){
     session.lossLimit = parseFloat(this.value) || 0;
@@ -928,6 +1062,56 @@
     persistActive();
   });
   document.getElementById('beginTradingBtn').addEventListener('click', function(){
+    showStage('context');
+    renderContext();
+  });
+
+  /* ---------- CONTEXT LOCK ---------- */
+  const CTX_KEYS = ['weeklyBias','monthlyBias','regime','accountType','model'];
+  function renderContext(){
+    const ctx = session.context;
+    document.querySelectorAll('[data-ctxq]').forEach(function(btn){
+      const key = btn.dataset.ctxq;
+      btn.classList.toggle('selected', ctx[key] === btn.dataset.v);
+    });
+    applyReversalRestriction();
+    validateContext();
+  }
+  function applyReversalRestriction(){
+    const btn = document.getElementById('modelReversalBtn');
+    const hint = document.getElementById('reversalHintText');
+    const isProp = session.context.accountType === 'prop';
+    btn.disabled = isProp;
+    btn.style.opacity = isProp ? '0.35' : '1';
+    btn.style.pointerEvents = isProp ? 'none' : 'auto';
+    hint.style.display = isProp ? 'block' : 'none';
+    if(isProp && session.context.model === 'reversal'){
+      session.context.model = null;
+      persistActive();
+      document.querySelectorAll('[data-ctxq="model"]').forEach(function(b){ b.classList.remove('selected'); });
+      showToast('Reversal cleared — unavailable on Prop');
+    }
+  }
+  document.querySelectorAll('[data-ctxq]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(btn.disabled) return;
+      const key = btn.dataset.ctxq;
+      session.context[key] = btn.dataset.v;
+      document.querySelectorAll('[data-ctxq="'+key+'"]').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      persistActive();
+      if(key === 'accountType') applyReversalRestriction();
+      validateContext();
+    });
+  });
+  function validateContext(){
+    const ctx = session.context;
+    const allSet = CTX_KEYS.every(function(k){ return !!ctx[k]; });
+    document.getElementById('lockContextBtn').disabled = !allSet;
+  }
+  document.getElementById('lockContextBtn').addEventListener('click', function(){
+    session.context.locked = true;
+    persistActive();
     showStage('statecheck');
     renderStateCheck();
   });
@@ -1143,6 +1327,11 @@
       persistActive();
     }
 
+    if(session.trades.length >= 2){
+      session.modelLocked = true;
+      persistActive();
+    }
+
     renderTrade();
     showToast(result === 'win' ? 'Win logged' : result === 'loss' ? 'Loss logged' : 'Breakeven logged');
   }
@@ -1156,15 +1345,26 @@
     const active = document.getElementById('tradeActiveArea');
     const cooldownArea = document.getElementById('cooldownArea');
     const lockoutArea = document.getElementById('lockoutArea');
+    const modelLockArea = document.getElementById('modelLockArea');
 
     if(session.locked){
       active.style.display = 'none';
       cooldownArea.style.display = 'none';
+      modelLockArea.style.display = 'none';
       lockoutArea.style.display = 'block';
       updateRing();
       return;
     }
     lockoutArea.style.display = 'none';
+
+    if(session.modelLocked){
+      active.style.display = 'none';
+      cooldownArea.style.display = 'none';
+      modelLockArea.style.display = 'block';
+      updateRing();
+      return;
+    }
+    modelLockArea.style.display = 'none';
 
     if(inCooldown){
       active.style.display = 'none';
@@ -1207,6 +1407,19 @@
     checkGates();
     showToast('Override logged');
   });
+  document.getElementById('modelOverrideBtn').addEventListener('click', function(){
+    const input = document.getElementById('modelOverridePhraseInput');
+    if(input.value.trim().toLowerCase() !== 'i am overriding my model lock'){
+      showToast('Type the exact phrase to continue');
+      return;
+    }
+    session.overrides.push({ time: Date.now(), note: 'Overrode model attempt cap on '+(session.context.model || 'model') });
+    session.modelLocked = false;
+    input.value = '';
+    persistActive();
+    checkGates();
+    showToast('Override logged');
+  });
   document.getElementById('endSessionBtn').addEventListener('click', function(){
     if(cooldownInterval){ clearInterval(cooldownInterval); cooldownInterval = null; }
     showStage('reflect');
@@ -1244,6 +1457,17 @@
     history.unshift(session);
     save(STORAGE.history, history);
     localStorage.removeItem(STORAGE.active);
+
+    if(session.context && session.context.accountType === 'live'){
+      const rules = load(STORAGE.accountRules, {});
+      if(typeof rules.cumulativeNetSinceBaseline !== 'number') rules.cumulativeNetSinceBaseline = 0;
+      rules.cumulativeNetSinceBaseline += computeNet(session.trades || []);
+      if(rules.thresholdAmount > 0 && rules.cumulativeNetSinceBaseline >= rules.thresholdAmount){
+        rules.pendingAcknowledgment = true;
+      }
+      save(STORAGE.accountRules, rules);
+    }
+
     session = newSession();
     showToast('Session saved');
     showStage('prepare');
@@ -1697,10 +1921,24 @@
     document.getElementById('selfWhoInput').value = load(STORAGE.selfWho, '');
     document.getElementById('selfStyleInput').value = load(STORAGE.selfStyle, '');
     document.getElementById('selfControlInput').value = load(STORAGE.selfControl, '');
+    const rules = load(STORAGE.accountRules, {});
+    document.getElementById('wdBaselineInput').value = rules.liveBaseline != null ? rules.liveBaseline : '';
+    document.getElementById('wdThresholdInput').value = rules.thresholdAmount != null ? rules.thresholdAmount : '';
+    document.getElementById('wdPercentInput').value = rules.withdrawPercent != null ? rules.withdrawPercent : '';
   }
   document.getElementById('selfWhoInput').addEventListener('input', function(){ save(STORAGE.selfWho, this.value); });
   document.getElementById('selfStyleInput').addEventListener('input', function(){ save(STORAGE.selfStyle, this.value); });
   document.getElementById('selfControlInput').addEventListener('input', function(){ save(STORAGE.selfControl, this.value); });
+  function saveWithdrawalField(key, value){
+    const rules = load(STORAGE.accountRules, {});
+    rules[key] = value;
+    if(typeof rules.cumulativeNetSinceBaseline !== 'number') rules.cumulativeNetSinceBaseline = 0;
+    if(typeof rules.pendingAcknowledgment !== 'boolean') rules.pendingAcknowledgment = false;
+    save(STORAGE.accountRules, rules);
+  }
+  document.getElementById('wdBaselineInput').addEventListener('input', function(){ saveWithdrawalField('liveBaseline', parseFloat(this.value) || 0); });
+  document.getElementById('wdThresholdInput').addEventListener('input', function(){ saveWithdrawalField('thresholdAmount', parseFloat(this.value) || 0); });
+  document.getElementById('wdPercentInput').addEventListener('input', function(){ saveWithdrawalField('withdrawPercent', parseFloat(this.value) || 0); });
 
   /* ---------- Nav ---------- */
   function switchView(name){
@@ -1792,6 +2030,7 @@
   // person explicitly completes a day or opens the app with no active session at all.
   showStage(session.stage === 'done' ? 'prepare' : session.stage);
   renderPrepare();
+  if(session.stage === 'context') renderContext();
   if(session.stage === 'statecheck') renderStateCheck();
   if(session.stage === 'trade') renderTrade();
   if(session.stage === 'reflect') renderReflect();
