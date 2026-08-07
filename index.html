@@ -371,6 +371,17 @@
     display:none;align-items:center;justify-content:center;padding:20px;
   }
   #blowModal.open{display:flex;}
+
+  #authGate{
+    position:fixed;inset:0;z-index:400;background:var(--void);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  #migrationModal{
+    position:fixed;inset:0;z-index:410;background:rgba(4,6,8,0.85);backdrop-filter:blur(8px);
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  #migrationModal.open{display:flex;}
+  .sync-status{font-size:11px;color:var(--dim2);margin-top:6px;}
   .confirm-box{
     width:min(340px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;
     padding:26px 22px;text-align:center;
@@ -818,6 +829,28 @@
   </div>
 </div>
 
+<div id="authGate">
+  <div class="confirm-box">
+    <div class="confirm-icon">◆</div>
+    <div class="confirm-title">Sovereign</div>
+    <p class="confirm-text">Sign in to sync your data across devices.</p>
+    <div id="authConfigWarning" style="display:none;color:var(--danger);font-size:12px;margin-bottom:14px;">Firebase isn't configured yet — see SETUP.md.</div>
+    <button class="btn btn-primary" id="googleSignInBtn">Sign in with Google</button>
+  </div>
+</div>
+
+<div id="migrationModal">
+  <div class="confirm-box">
+    <div class="confirm-icon">◆</div>
+    <div class="confirm-title">Import existing data?</div>
+    <p class="confirm-text">This device already has Sovereign history that isn't in your account yet. Import it now, or start this account fresh and leave the local data as-is on this device.</p>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="migrateNoBtn">Start fresh</button>
+      <button class="btn btn-primary" id="migrateYesBtn">Import it</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ SELF VIEW ============ -->
 <div class="view" id="view-rituals">
   <div class="view-header-row"><h1>Rituals</h1></div>
@@ -867,6 +900,16 @@
     </div>
     <div class="save-note">Saves automatically as you type.</div>
   </div>
+
+  <h1 style="margin-top:28px;">Account</h1>
+  <div class="card">
+    <div class="field">
+      <label>Signed in as</label>
+      <div id="accountEmailText" style="font-size:14px;color:var(--ink);padding:6px 0;">—</div>
+    </div>
+    <div class="sync-status" id="syncStatusText"></div>
+    <button class="btn btn-ghost" id="signOutBtn" style="margin-top:12px;">Sign out</button>
+  </div>
 </div>
 
 <div class="bottom-nav">
@@ -911,6 +954,7 @@
   }
   function save(key, value){
     try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){}
+    if(window.__sovereignQueueCloudPush) window.__sovereignQueueCloudPush();
   }
   function fmtMoney(n){
     const sign = n < 0 ? '-' : '';
@@ -949,6 +993,7 @@
     { id:'energy', label:'Energy', icon:'bolt' }
   ];
   STORAGE.rituals = 'sovereign_rituals';
+  window.__SOVEREIGN_STORAGE_KEYS = STORAGE;
   function getRituals(){ return load(STORAGE.rituals, DEFAULT_RITUALS); }
 
   function newSession(){
@@ -2189,6 +2234,198 @@
   }
 })();
 
+</script>
+
+<script type="module">
+  // ===================================================================
+  // Sovereign Cloud Sync — Google Sign-In + Firestore
+  //
+  // This module is intentionally isolated from the main app script above.
+  // It never touches app logic directly — it only reads/writes the same
+  // localStorage keys the app already uses (via STORAGE, exposed as
+  // window.__SOVEREIGN_STORAGE_KEYS), and reacts to writes via the
+  // window.__sovereignQueueCloudPush() hook the app calls on every save().
+  //
+  // >>> REPLACE firebaseConfig BELOW WITH YOUR OWN FIREBASE PROJECT CONFIG <<<
+  // See SETUP.md for exact steps (create project, enable Google sign-in,
+  // create Firestore, add your domain, deploy firestore.rules).
+  // ===================================================================
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+    onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  const authGate = document.getElementById('authGate');
+  const migrationModal = document.getElementById('migrationModal');
+  const configWarning = document.getElementById('authConfigWarning');
+  const signInBtn = document.getElementById('googleSignInBtn');
+  const syncStatusEl = document.getElementById('syncStatusText');
+  const emailEl = document.getElementById('accountEmailText');
+
+  if(firebaseConfig.apiKey === 'YOUR_API_KEY'){
+    configWarning.style.display = 'block';
+    signInBtn.disabled = true;
+    signInBtn.style.opacity = '0.4';
+  }
+
+  function setSyncStatus(text){ if(syncStatusEl) syncStatusEl.textContent = text; }
+
+  let app, auth, db, provider, currentUid = null, pushTimer = null;
+
+  function getStorageKeys(){ return window.__SOVEREIGN_STORAGE_KEYS || {}; }
+
+  function collectLocalData(){
+    const out = {};
+    Object.values(getStorageKeys()).forEach(function(key){
+      const raw = localStorage.getItem(key);
+      if(raw !== null){ try{ out[key] = JSON.parse(raw); }catch(e){} }
+    });
+    return out;
+  }
+  function hasAnyLocalData(){
+    const keys = getStorageKeys();
+    const history = safeParse(localStorage.getItem(keys.history));
+    if(history && history.length > 0) return true;
+
+    const active = safeParse(localStorage.getItem(keys.active));
+    if(active && (active.stage !== 'prepare' || active.lossLimit > 0 ||
+       (active.checklist && Object.values(active.checklist).some(Boolean)))) return true;
+
+    const rules = safeParse(localStorage.getItem(keys.accountRules));
+    if(rules && (rules.liveBaseline || rules.thresholdAmount)) return true;
+
+    const cooldowns = safeParse(localStorage.getItem(keys.accountCooldowns));
+    if(cooldowns && Object.keys(cooldowns).length > 0) return true;
+
+    const withdrawalLog = safeParse(localStorage.getItem(keys.withdrawalLog));
+    if(withdrawalLog && withdrawalLog.length > 0) return true;
+
+    const selfWho = localStorage.getItem(keys.selfWho);
+    const selfStyle = localStorage.getItem(keys.selfStyle);
+    const selfControl = localStorage.getItem(keys.selfControl);
+    if((selfWho && JSON.parse(selfWho)) || (selfStyle && JSON.parse(selfStyle)) || (selfControl && JSON.parse(selfControl))) return true;
+
+    return false;
+  }
+  function safeParse(raw){
+    if(raw === null || raw === undefined) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
+  }
+
+  async function pushToCloud(){
+    if(!currentUid) return;
+    if(!navigator.onLine){
+      localStorage.setItem('sovereign_pendingCloudSync', '1');
+      setSyncStatus('Offline — will sync when back online');
+      return;
+    }
+    try{
+      await setDoc(doc(db, 'users', currentUid), { data: collectLocalData(), updatedAt: Date.now() });
+      localStorage.removeItem('sovereign_pendingCloudSync');
+      setSyncStatus('Synced just now');
+    }catch(e){
+      localStorage.setItem('sovereign_pendingCloudSync', '1');
+      setSyncStatus('Sync failed — will retry');
+      console.error('Sovereign cloud sync failed:', e);
+    }
+  }
+
+  window.__sovereignQueueCloudPush = function(){
+    if(!currentUid) return;
+    setSyncStatus('Syncing…');
+    if(pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushToCloud, 2500);
+  };
+
+  window.addEventListener('online', function(){
+    if(currentUid && localStorage.getItem('sovereign_pendingCloudSync') === '1') pushToCloud();
+  });
+
+  async function hydrateAndEnter(){
+    setSyncStatus('Loading your data…');
+    let cloudDoc = null;
+    try{
+      const snap = await getDoc(doc(db, 'users', currentUid));
+      if(snap.exists()) cloudDoc = snap.data();
+    }catch(e){
+      console.error('Sovereign: could not reach Firestore — continuing offline with local data if present', e);
+      authGate.style.display = 'none';
+      setSyncStatus('Offline — showing local data');
+      return;
+    }
+
+    if(cloudDoc && cloudDoc.data){
+      if(sessionStorage.getItem('sovereign_hydrated') === '1'){
+        authGate.style.display = 'none';
+        setSyncStatus('Synced');
+        return;
+      }
+      Object.keys(cloudDoc.data).forEach(function(key){
+        localStorage.setItem(key, JSON.stringify(cloudDoc.data[key]));
+      });
+      sessionStorage.setItem('sovereign_hydrated', '1');
+      authGate.style.display = 'none';
+      location.reload();
+      return;
+    }
+
+    if(hasAnyLocalData()){
+      migrationModal.classList.add('open');
+    } else {
+      authGate.style.display = 'none';
+      pushToCloud();
+    }
+  }
+
+  signInBtn.addEventListener('click', function(){ signInWithRedirect(auth, provider); });
+  document.getElementById('signOutBtn').addEventListener('click', function(){ signOut(auth); });
+  document.getElementById('migrateYesBtn').addEventListener('click', function(){
+    migrationModal.classList.remove('open');
+    authGate.style.display = 'none';
+    pushToCloud();
+  });
+  document.getElementById('migrateNoBtn').addEventListener('click', function(){
+    migrationModal.classList.remove('open');
+    authGate.style.display = 'none';
+    pushToCloud();
+  });
+
+  try{
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    provider = new GoogleAuthProvider();
+
+    getRedirectResult(auth).catch(function(e){ console.error('Sovereign sign-in redirect error:', e); });
+
+    onAuthStateChanged(auth, function(user){
+      if(user){
+        currentUid = user.uid;
+        if(emailEl) emailEl.textContent = user.email || '';
+        hydrateAndEnter();
+      } else {
+        currentUid = null;
+        sessionStorage.removeItem('sovereign_hydrated');
+        authGate.style.display = 'flex';
+      }
+    });
+  }catch(e){
+    console.error('Sovereign: Firebase failed to initialize — check firebaseConfig in index.html', e);
+  }
 </script>
 </body>
 </html>
