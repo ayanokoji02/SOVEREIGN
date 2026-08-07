@@ -224,6 +224,13 @@
   .evidence-item.locked{color:var(--dim2);}
   .evidence-progress{font-size:11px;color:var(--dim2);margin-top:3px;}
 
+  /* Pre-session data prompt */
+  .presession-line{font-size:14px;color:var(--ink);line-height:1.55;}
+  .presession-sub{font-size:11.5px;color:var(--dim2);margin-top:6px;}
+
+  /* Account cooldown (Context stage) */
+  .account-cooldown-note{font-size:11px;color:var(--danger);margin-top:6px;}
+
   /* State check chips */
   .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
   .chip{
@@ -359,6 +366,11 @@
     display:none;align-items:center;justify-content:center;padding:20px;
   }
   #confirmModal.open{display:flex;}
+  #blowModal{
+    position:fixed;inset:0;z-index:300;background:rgba(4,6,8,0.75);backdrop-filter:blur(8px);
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  #blowModal.open{display:flex;}
   .confirm-box{
     width:min(340px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;
     padding:26px 22px;text-align:center;
@@ -425,6 +437,12 @@
     <section class="stage" id="stage-prepare">
       <h1>Prepare</h1>
       <p class="stage-sub">Remove the battle before it starts. This decides more than the market does.</p>
+
+      <div class="card" id="preSessionCard">
+        <div class="card-label">Before you start</div>
+        <div class="presession-line" id="preSessionLine"></div>
+        <div class="presession-sub" id="preSessionSub"></div>
+      </div>
 
       <div id="withdrawalGateArea" style="display:none;">
         <div class="stage-overlay danger">
@@ -497,9 +515,10 @@
         <div class="check-question">
           <div class="check-question-text">Account</div>
           <div class="toggle-row">
-            <button class="toggle-btn" data-ctxq="accountType" data-v="prop">Prop</button>
-            <button class="toggle-btn" data-ctxq="accountType" data-v="live">Live</button>
+            <button class="toggle-btn" data-ctxq="accountType" data-v="prop" id="acctPropBtn">Prop</button>
+            <button class="toggle-btn" data-ctxq="accountType" data-v="live" id="acctLiveBtn">Live</button>
           </div>
+          <div class="account-cooldown-note" id="acctCooldownNote" style="display:none;"></div>
         </div>
         <div class="check-question">
           <div class="check-question-text">Primary model — locked for this session</div>
@@ -787,6 +806,18 @@
   </div>
 </div>
 
+<div id="blowModal">
+  <div class="confirm-box">
+    <div class="confirm-icon">■</div>
+    <div class="confirm-title">Before you close this out</div>
+    <p class="confirm-text">You hit your loss limit this session. Would you call this a full account blow — not just over the limit, but the account itself?</p>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="blowNoBtn">No — over limit, not a blow</button>
+      <button class="btn btn-danger" id="blowYesBtn">Yes — full blow</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ SELF VIEW ============ -->
 <div class="view" id="view-rituals">
   <div class="view-header-row"><h1>Rituals</h1></div>
@@ -867,7 +898,8 @@
     selfStyle: 'sovereign_selfStyle',
     selfControl: 'sovereign_selfControl',
     accountRules: 'sovereign_accountRules',
-    withdrawalLog: 'sovereign_withdrawalLog'
+    withdrawalLog: 'sovereign_withdrawalLog',
+    accountCooldowns: 'sovereign_accountCooldowns'
   };
 
   function todayISO(){
@@ -935,6 +967,8 @@
       stateCheck: null,
       context: { weeklyBias:null, monthlyBias:null, regime:null, accountType:null, model:null, locked:false },
       modelLocked: false,
+      lossLimitEverHit: false,
+      blowFlag: false,
       notes: '',
       nextPlan: '',
       cooldownUntil: null,
@@ -946,6 +980,8 @@
   let session = load(STORAGE.active, null) || newSession();
   if(!session.context) session.context = { weeklyBias:null, monthlyBias:null, regime:null, accountType:null, model:null, locked:false };
   if(typeof session.modelLocked !== 'boolean') session.modelLocked = false;
+  if(typeof session.lossLimitEverHit !== 'boolean') session.lossLimitEverHit = false;
+  if(typeof session.blowFlag !== 'boolean') session.blowFlag = false;
   let pendingFearRead = null;
   let pendingChasing = null;
   let cooldownInterval = null;
@@ -974,6 +1010,7 @@
     document.getElementById('stage-'+stageName).classList.add('active');
     session.stage = stageName;
     persistActive();
+    if(stageName !== 'context' && contextCooldownInterval){ clearInterval(contextCooldownInterval); contextCooldownInterval = null; }
     updateRing();
   }
 
@@ -1012,8 +1049,37 @@
     renderRitualRow();
     document.getElementById('lossLimitInput').value = session.lossLimit || '';
     document.getElementById('sessionsPlannedInput').value = session.sessionsPlanned || 1;
+    renderPreSession();
     renderWithdrawalGate();
     validatePrepare();
+  }
+  function renderPreSession(){
+    const history = load(STORAGE.history, []);
+    const flagged = history.filter(function(s){ return (s.overrides && s.overrides.length > 0) || s.blowFlag; });
+    const lineEl = document.getElementById('preSessionLine');
+    const subEl = document.getElementById('preSessionSub');
+    if(flagged.length === 0){
+      lineEl.textContent = history.length === 0
+        ? 'No sessions logged yet.'
+        : 'Clean record — '+history.length+' session'+(history.length===1?'':'s')+' logged, zero overrides.';
+      subEl.textContent = '';
+    } else {
+      const last = flagged[0];
+      const days = Math.max(0, Math.floor((Date.now() - (last.completedAt || last.startedAt)) / 86400000));
+      const net = computeNet(last.trades || []);
+      const acct = (last.context && last.context.accountType) ? last.context.accountType : 'unknown account';
+      const label = last.blowFlag ? 'blow' : 'override';
+      lineEl.textContent = 'Last '+label+' led to '+fmtMoney(net)+' on '+acct+'. You are '+days+' day'+(days===1?'':'s')+' into rebuilding.';
+      const now = new Date();
+      const overridesThisMonth = history.reduce(function(sum, s){
+        const d = new Date(s.completedAt || s.startedAt);
+        if(d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()){
+          return sum + (s.overrides ? s.overrides.length : 0);
+        }
+        return sum;
+      }, 0);
+      subEl.textContent = overridesThisMonth + ' override'+(overridesThisMonth===1?'':'s')+' this month.';
+    }
   }
   function renderWithdrawalGate(){
     const rules = load(STORAGE.accountRules, null);
@@ -1068,6 +1134,7 @@
 
   /* ---------- CONTEXT LOCK ---------- */
   const CTX_KEYS = ['weeklyBias','monthlyBias','regime','accountType','model'];
+  let contextCooldownInterval = null;
   function renderContext(){
     const ctx = session.context;
     document.querySelectorAll('[data-ctxq]').forEach(function(btn){
@@ -1075,6 +1142,49 @@
       btn.classList.toggle('selected', ctx[key] === btn.dataset.v);
     });
     applyReversalRestriction();
+    applyAccountCooldownUI();
+    if(contextCooldownInterval) clearInterval(contextCooldownInterval);
+    contextCooldownInterval = setInterval(applyAccountCooldownUI, 1000);
+    validateContext();
+  }
+  function fmtCooldownRemaining(ms){
+    if(ms <= 0) return '';
+    const totalMin = Math.ceil(ms / 60000);
+    if(totalMin < 60) return totalMin+' min';
+    const hrs = Math.floor(totalMin/60);
+    const mins = totalMin % 60;
+    return hrs+'h '+String(mins).padStart(2,'0')+'m';
+  }
+  function applyAccountCooldownUI(){
+    const cooldowns = load(STORAGE.accountCooldowns, {});
+    const note = document.getElementById('acctCooldownNote');
+    const now = Date.now();
+    const propBtn = document.getElementById('acctPropBtn');
+    const liveBtn = document.getElementById('acctLiveBtn');
+    const propCd = cooldowns.prop && cooldowns.prop.until > now ? cooldowns.prop : null;
+    const liveCd = cooldowns.live && cooldowns.live.until > now ? cooldowns.live : null;
+
+    propBtn.disabled = !!propCd;
+    propBtn.style.opacity = propCd ? '0.35' : '1';
+    propBtn.style.pointerEvents = propCd ? 'none' : 'auto';
+    liveBtn.disabled = !!liveCd;
+    liveBtn.style.opacity = liveCd ? '0.35' : '1';
+    liveBtn.style.pointerEvents = liveCd ? 'none' : 'auto';
+
+    if(propCd && session.context.accountType === 'prop'){ session.context.accountType = null; persistActive(); }
+    if(liveCd && session.context.accountType === 'live'){ session.context.accountType = null; persistActive(); }
+
+    const notes = [];
+    if(propCd) notes.push('Prop locked'+(propCd.tier==='blow' ? ' until tomorrow' : ' — '+fmtCooldownRemaining(propCd.until-now)+' left')+' ('+propCd.tier+')');
+    if(liveCd) notes.push('Live locked'+(liveCd.tier==='blow' ? ' until tomorrow' : ' — '+fmtCooldownRemaining(liveCd.until-now)+' left')+' ('+liveCd.tier+')');
+    if(notes.length){
+      note.style.display = 'block';
+      note.textContent = notes.join(' · ');
+    } else {
+      note.style.display = 'none';
+    }
+    if(propBtn.classList.contains('selected') && propCd) propBtn.classList.remove('selected');
+    if(liveBtn.classList.contains('selected') && liveCd) liveBtn.classList.remove('selected');
     validateContext();
   }
   function applyReversalRestriction(){
@@ -1324,6 +1434,7 @@
     const loss = lossSoFar();
     if(session.lossLimit > 0 && loss >= session.lossLimit){
       session.locked = true;
+      session.lossLimitEverHit = true;
       persistActive();
     }
 
@@ -1422,9 +1533,45 @@
   });
   document.getElementById('endSessionBtn').addEventListener('click', function(){
     if(cooldownInterval){ clearInterval(cooldownInterval); cooldownInterval = null; }
+    if(session.lossLimitEverHit){
+      document.getElementById('blowModal').classList.add('open');
+    } else {
+      finalizeEndSession('normal');
+    }
+  });
+  document.getElementById('blowNoBtn').addEventListener('click', function(){
+    document.getElementById('blowModal').classList.remove('open');
+    finalizeEndSession('nearblow');
+  });
+  document.getElementById('blowYesBtn').addEventListener('click', function(){
+    session.blowFlag = true;
+    persistActive();
+    document.getElementById('blowModal').classList.remove('open');
+    finalizeEndSession('blow');
+  });
+  function applyAccountCooldown(tier){
+    const acct = session.context && session.context.accountType;
+    if(!acct) return;
+    const now = Date.now();
+    let until;
+    if(tier === 'blow'){
+      const midnight = new Date();
+      midnight.setHours(24,0,0,0);
+      until = midnight.getTime();
+    } else if(tier === 'nearblow'){
+      until = now + 5*60*60000;
+    } else {
+      until = now + 45*60000;
+    }
+    const cooldowns = load(STORAGE.accountCooldowns, {});
+    cooldowns[acct] = { until: until, tier: tier };
+    save(STORAGE.accountCooldowns, cooldowns);
+  }
+  function finalizeEndSession(tier){
+    applyAccountCooldown(tier);
     showStage('reflect');
     renderReflect();
-  });
+  }
 
   /* ---------- REFLECT ---------- */
   function renderReflect(){
