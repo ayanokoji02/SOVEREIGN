@@ -381,6 +381,11 @@
     display:none;align-items:center;justify-content:center;padding:20px;
   }
   #migrationModal.open{display:flex;}
+  #conflictModal{
+    position:fixed;inset:0;z-index:420;background:rgba(4,6,8,0.85);backdrop-filter:blur(8px);
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  #conflictModal.open{display:flex;}
   .sync-status{font-size:11px;color:var(--dim2);margin-top:6px;}
   .confirm-box{
     width:min(340px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;
@@ -848,6 +853,18 @@
     <div class="btn-row">
       <button class="btn btn-ghost" id="migrateNoBtn">Start fresh</button>
       <button class="btn btn-primary" id="migrateYesBtn">Import it</button>
+    </div>
+  </div>
+</div>
+
+<div id="conflictModal">
+  <div class="confirm-box">
+    <div class="confirm-icon">■</div>
+    <div class="confirm-title">This device has different data</div>
+    <p class="confirm-text">Your account already has cloud data, but this device also has local data that doesn't match. Choose which one to keep — the other side will be overwritten.</p>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="conflictKeepLocalBtn">Keep this device's data</button>
+      <button class="btn btn-primary" id="conflictUseCloudBtn">Use cloud data</button>
     </div>
   </div>
 </div>
@@ -2272,6 +2289,8 @@
 
   const authGate = document.getElementById('authGate');
   const migrationModal = document.getElementById('migrationModal');
+  const conflictModal = document.getElementById('conflictModal');
+  let pendingCloudData = null;
   const configWarning = document.getElementById('authConfigWarning');
   const signInBtn = document.getElementById('googleSignInBtn');
   const syncStatusEl = document.getElementById('syncStatusText');
@@ -2377,12 +2396,14 @@
         setSyncStatus('Synced');
         return;
       }
-      Object.keys(cloudDoc.data).forEach(function(key){
-        localStorage.setItem(key, JSON.stringify(cloudDoc.data[key]));
-      });
-      sessionStorage.setItem('sovereign_hydrated', '1');
-      authGate.style.display = 'none';
-      location.reload();
+      if(hasAnyLocalData()){
+        // Both sides have real data and they may not match — never silently
+        // pick one. Ask, same as we do for a brand-new cloud sign-in.
+        pendingCloudData = cloudDoc.data;
+        conflictModal.classList.add('open');
+        return;
+      }
+      applyCloudHydration(cloudDoc.data);
       return;
     }
 
@@ -2392,6 +2413,15 @@
       authGate.style.display = 'none';
       pushToCloud();
     }
+  }
+
+  function applyCloudHydration(data){
+    Object.keys(data).forEach(function(key){
+      localStorage.setItem(key, JSON.stringify(data[key]));
+    });
+    sessionStorage.setItem('sovereign_hydrated', '1');
+    authGate.style.display = 'none';
+    location.reload();
   }
 
   signInBtn.addEventListener('click', function(){
@@ -2409,6 +2439,17 @@
   });
   document.getElementById('migrateNoBtn').addEventListener('click', function(){
     migrationModal.classList.remove('open');
+    authGate.style.display = 'none';
+    pushToCloud();
+  });
+  document.getElementById('conflictUseCloudBtn').addEventListener('click', function(){
+    conflictModal.classList.remove('open');
+    if(pendingCloudData) applyCloudHydration(pendingCloudData);
+  });
+  document.getElementById('conflictKeepLocalBtn').addEventListener('click', function(){
+    conflictModal.classList.remove('open');
+    pendingCloudData = null;
+    sessionStorage.setItem('sovereign_hydrated', '1');
     authGate.style.display = 'none';
     pushToCloud();
   });
